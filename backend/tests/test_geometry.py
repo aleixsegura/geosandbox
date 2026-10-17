@@ -79,3 +79,23 @@ def test_ogr_authority_axis_order_4326(rt):
     lon, lat = np.add(out["data"]["points"][0], out["meta"]["origin"])
     assert lon == pytest.approx(0.62, abs=1e-5) and lat == pytest.approx(41.61, abs=1e-5)
 
+
+
+def test_z_travels_in_its_own_float32_buffers(rt):
+    items = [Point(1, 2, 30), LineString([(0, 0, 5), (4, 0, 15)]),
+             Polygon([(0, 0, 1), (2, 0, 2), (2, 2, 3), (0, 0, 1)]), Point(9, 9)]
+    out = rt(items, "relief")
+    d, m = out["data"], out["meta"]
+    assert m["has_z"] is True and m["z_range"] == [1.0, 30.0]
+    assert d["points_z"].dtype == np.float32
+    np.testing.assert_array_equal(d["points_z"][:1], [30])
+    assert np.isnan(d["points_z"][1])  # the 2D point
+    assert d["lines_z"].tolist() == [5, 15]
+    assert d["rings_z"].tolist() == [1, 2, 3, 1]
+    assert d["points"].shape == (2, 2)  # xy buffers are unchanged
+
+
+def test_flat_geometries_send_no_z(rt):
+    out = rt(Polygon([(0, 0), (1, 0), (1, 1)]), "flat")
+    assert out["meta"]["has_z"] is False and out["meta"]["z_range"] is None
+    assert "rings_z" not in out["data"]

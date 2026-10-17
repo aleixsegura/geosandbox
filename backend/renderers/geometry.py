@@ -249,6 +249,17 @@ def geometry_payload(
     total_bounds = (
         shapely.total_bounds(non_empty).tolist() if len(non_empty) else [None, None, None, None]
     )
+
+    # Z travels in its own buffers, only when some geometry has it; 2D parts get NaN.
+    has_z = bool(len(non_empty) and shapely.has_z(non_empty).any())
+    z_data: dict[str, np.ndarray] = {}
+    z_range = None
+    if has_z:
+        for key, geoms_ in (("points_z", pts), ("lines_z", lines), ("rings_z", rings)):
+            z_data[key] = shapely.get_coordinates(geoms_, include_z=True)[:, 2].astype(np.float32)
+        all_z = np.concatenate(list(z_data.values()))
+        if np.isfinite(all_z).any():
+            z_range = [float(np.nanmin(all_z)), float(np.nanmax(all_z))]
     meta = {
         "title": title,
         "single": single,
@@ -265,6 +276,8 @@ def geometry_payload(
         "invalid": invalid,
         "features": features,
         "geom_types": sorted({g.geom_type for g in safe[present]}),
+        "has_z": has_z,
+        "z_range": z_range,
     }
     if extra_meta:
         meta.update(extra_meta)
@@ -282,6 +295,7 @@ def geometry_payload(
         "centroids": rel(centroid_display),
         "anchors": rel(anchor_display),
         "bboxes": rel(bbox_display).reshape(n, 4, 2),
+        **z_data,
     }
     return payload("geometry", name, data, meta)
 
