@@ -35,8 +35,8 @@ function formatTick(v: number, step: number): string {
 }
 
 /**
- * Graph paper behind the orthographic deck.gl view: minor/major grids that
- * adapt to zoom and labelled X/Y axes. Drawn with Canvas 2D for crisp lines.
+ * Graph paper behind the orthographic deck.gl view: a grid that adapts to
+ * zoom and labelled X/Y axes. Drawn with Canvas 2D for crisp lines.
  */
 export default function GraphPaper({ view, width, height, flipY, theme }: Props) {
   const ref = useRef<HTMLCanvasElement>(null);
@@ -61,28 +61,22 @@ export default function GraphPaper({ view, width, height, flipY, theme }: Props)
     const y0 = ty - height / 2 / scale;
     const y1 = ty + height / 2 / scale;
 
-    const minor = niceStep(14 / scale);
-    const lead = Math.round(minor / 10 ** Math.floor(Math.log10(minor)));
-    const major = minor * (lead === 2 ? 5 : lead === 5 ? 2 : 5);
+    const major = niceStep(48 / scale);
 
-    const lines = (step: number, color: string, lw: number) => {
-      ctx.beginPath();
-      ctx.strokeStyle = color;
-      ctx.lineWidth = lw;
-      for (let x = Math.ceil(x0 / step) * step; x <= x1; x += step) {
-        const px = Math.round(sx(x)) + 0.5;
-        ctx.moveTo(px, 0);
-        ctx.lineTo(px, height);
-      }
-      for (let y = Math.ceil(y0 / step) * step; y <= y1; y += step) {
-        const py = Math.round(sy(y)) + 0.5;
-        ctx.moveTo(0, py);
-        ctx.lineTo(width, py);
-      }
-      ctx.stroke();
-    };
-    lines(minor, theme.gridMinor, 1);
-    lines(major, theme.gridMajor, 1);
+    ctx.beginPath();
+    ctx.strokeStyle = theme.gridMajor;
+    ctx.lineWidth = 1;
+    for (let x = Math.ceil(x0 / major) * major; x <= x1; x += major) {
+      const px = Math.round(sx(x)) + 0.5;
+      ctx.moveTo(px, 0);
+      ctx.lineTo(px, height);
+    }
+    for (let y = Math.ceil(y0 / major) * major; y <= y1; y += major) {
+      const py = Math.round(sy(y)) + 0.5;
+      ctx.moveTo(0, py);
+      ctx.lineTo(width, py);
+    }
+    ctx.stroke();
 
     // Axes through the origin, when visible.
     ctx.beginPath();
