@@ -12,12 +12,12 @@ x = 296_000 + 100 * np.arange(120) + 50
 y = 4_624_000 - 100 * np.arange(90) - 50
 time = pd.date_range("2024-01-01", periods=12, freq="MS")
 
-xx, yy = np.meshgrid(x, y)
-fields = np.sin((xx - x.min()) / 1800) * np.cos((yy - y.min()) / 1500)
-season = np.sin(np.linspace(0, 2 * np.pi, 12, endpoint=False) - np.pi / 2)
+_xx, _yy = np.meshgrid(x, y)
+_fields = np.sin((_xx - x.min()) / 1800) * np.cos((_yy - y.min()) / 1500)
+_season = np.sin(np.linspace(0, 2 * np.pi, 12, endpoint=False) - np.pi / 2)
 
 ndvi = xr.DataArray(
-    0.45 + 0.25 * fields[None] * (0.6 + 0.4 * season[:, None, None]) + 0.2 * season[:, None, None],
+    0.45 + 0.25 * _fields[None] * (0.6 + 0.4 * _season[:, None, None]) + 0.2 * _season[:, None, None],
     dims=("time", "y", "x"),
     coords={"time": time, "y": y, "x": x},
     name="ndvi",
