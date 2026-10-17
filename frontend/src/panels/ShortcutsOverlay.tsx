@@ -8,6 +8,7 @@ const ROWS: [string, string][] = [
   ["F", "Fit the canvas to visible objects"],
   ["C", "Clear the canvas (re-run code to draw again)"],
   ["G", "Toggle ghosts (previous versions)"],
+  ["V", "Show or hide variables and inspector"],
   ["M", "Cycle canvas: auto → paper → map"],
   ["Esc", "Clear selection / close this panel"],
   ["?", "Show this help"],

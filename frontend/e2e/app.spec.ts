@@ -30,6 +30,7 @@ async function boot(page: Page): Promise<void> {
   await expect(page.getByTestId("kernel-status")).toHaveAttribute("data-state", "idle");
   await page.getByTestId("restart").click();
   await expect(page.getByTestId("kernel-status")).toHaveAttribute("data-state", "idle");
+  await page.getByTestId("toggle-sidebar").click();
   await expect(page.getByTestId("var-list-empty")).toBeVisible();
 }
 
@@ -189,6 +190,19 @@ test("clearing the canvas keeps the kernel; re-running draws again", async ({ pa
   await page.getByTestId("canvas").click({ position: { x: 20, y: 200 } });
   await page.keyboard.press("c");
   await expect(page.getByTestId("var-list-empty")).toBeVisible();
+});
+
+test("the editor starts empty and the canvas takes the full width until V opens the sidebar", async ({ page }) => {
+  await page.goto("/");
+  await page.waitForSelector(".monaco-editor");
+  expect(await page.evaluate(() => (window as any).__editorApi.editor.getValue())).toBe("");
+  await expect(page.getByTestId("sidebar")).toHaveCount(0);
+  await page.screenshot({ path: `${SHOTS}/sidebar-closed.png` });
+  await page.getByTestId("canvas").click({ position: { x: 20, y: 200 } });
+  await page.keyboard.press("v");
+  await expect(page.getByTestId("sidebar")).toBeVisible();
+  await page.keyboard.press("v");
+  await expect(page.getByTestId("sidebar")).toHaveCount(0);
 });
 
 test("? opens the shortcuts overlay", async ({ page }) => {

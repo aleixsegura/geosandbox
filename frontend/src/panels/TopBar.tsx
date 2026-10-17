@@ -2,7 +2,7 @@ import { useEffect, useState, type ReactNode } from "react";
 
 import { editorApi } from "../editor/Editor";
 import { useStore } from "../state/store";
-import { HelpIcon, PlayAllIcon, PlayIcon, RestartIcon, SelectionIcon, StopIcon } from "../ui/icons";
+import { HelpIcon, PlayAllIcon, PlayIcon, RestartIcon, SelectionIcon, SidebarIcon, StopIcon } from "../ui/icons";
 import { interrupt, restart } from "../ws/client";
 
 function Button({ onClick, title, children, testId, tone = "neutral" }: { onClick: () => void; title: string; children: ReactNode; testId?: string; tone?: "neutral" | "primary" }) {
@@ -32,6 +32,8 @@ const STATUS: Record<string, { label: string; dot: string }> = {
 export default function TopBar() {
   const kernel = useStore((s) => s.kernel);
   const setHelpOpen = useStore((s) => s.setHelpOpen);
+  const sidebarOpen = useStore((s) => s.sidebarOpen);
+  const setSidebarOpen = useStore((s) => s.setSidebarOpen);
   const [snippets, setSnippets] = useState<{ name: string }[]>([]);
 
   useEffect(() => {
@@ -90,6 +92,18 @@ export default function TopBar() {
           <span className={`h-2 w-2 rounded-full ${status.dot}`} />
           {status.label}
         </span>
+        <button
+          type="button"
+          title="Variables and inspector (V)"
+          aria-pressed={sidebarOpen}
+          onClick={() => setSidebarOpen(!sidebarOpen)}
+          data-testid="toggle-sidebar"
+          className={`flex items-center gap-1.5 rounded px-2 py-1 font-sans text-xs transition-colors ${
+            sidebarOpen ? "bg-accent/15 text-accent" : "text-pencil hover:bg-sunken hover:text-ink"
+          }`}
+        >
+          <SidebarIcon /> Variables
+        </button>
         <button type="button" title="Keyboard shortcuts (?)" onClick={() => setHelpOpen(true)} className="rounded p-1 text-pencil hover:bg-sunken hover:text-ink">
           <HelpIcon />
         </button>

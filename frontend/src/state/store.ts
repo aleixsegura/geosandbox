@@ -57,6 +57,8 @@ interface State {
   pendingError: string | null;
   fitRequest: number;
   helpOpen: boolean;
+  /** Variables + inspector sidebar; closed so the canvas gets the full width. */
+  sidebarOpen: boolean;
   colorOf: Record<string, VarColor>;
 
   upsert: (p: Payload) => void;
@@ -76,6 +78,7 @@ interface State {
   setPendingError: (m: string | null) => void;
   requestFit: () => void;
   setHelpOpen: (open: boolean) => void;
+  setSidebarOpen: (open: boolean) => void;
 }
 
 const GHOST_KINDS = new Set(["geometry", "transform"]);
@@ -153,6 +156,7 @@ export const useStore = create<State>((set, get) => ({
   pendingError: null,
   fitRequest: 0,
   helpOpen: false,
+  sidebarOpen: false,
   colorOf: {},
 
   upsert: (p) =>
@@ -245,6 +249,7 @@ export const useStore = create<State>((set, get) => ({
   setPendingError: (pendingError) => set({ pendingError }),
   requestFit: () => set((s) => ({ fitRequest: s.fitRequest + 1 })),
   setHelpOpen: (helpOpen) => set({ helpOpen }),
+  setSidebarOpen: (sidebarOpen) => set({ sidebarOpen }),
 }));
 
 export { rasterMeta };

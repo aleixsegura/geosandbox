@@ -29,6 +29,7 @@ function useGlobalShortcuts() {
       if (e.key === "?") s.setHelpOpen(!s.helpOpen);
       else if (e.key === "f") s.requestFit();
       else if (e.key === "c") s.clearAll();
+      else if (e.key === "v") s.setSidebarOpen(!s.sidebarOpen);
       else if (e.key === "g") s.setToggle("ghosts", !s.toggles.ghosts);
       else if (e.key === "m") s.setCanvasMode(s.canvasMode === "auto" ? "paper" : s.canvasMode === "paper" ? "map" : "auto");
     };
@@ -40,6 +41,7 @@ function useGlobalShortcuts() {
 export default function App() {
   const consoleOpen = useStore((s) => s.consoleOpen);
   const setConsoleOpen = useStore((s) => s.setConsoleOpen);
+  const sidebarOpen = useStore((s) => s.sidebarOpen);
   const consolePanel = useRef<ImperativePanelHandle>(null);
   useEffect(() => {
     const panel = consolePanel.current;
@@ -74,27 +76,29 @@ export default function App() {
         </Panel>
         <Handle direction="horizontal" />
         <Panel defaultSize={58} minSize={30}>
-          <PanelGroup direction="horizontal" autoSaveId="gs-right">
-            <Panel defaultSize={70} minSize={30} data-testid="right-canvas">
+          <PanelGroup direction="horizontal">
+            <Panel id="canvas" order={1} defaultSize={70} minSize={30} data-testid="right-canvas">
               <Canvas />
             </Panel>
-            <Handle direction="horizontal" />
-            <Panel defaultSize={30} minSize={18} className="flex flex-col bg-panel">
-              <PanelGroup direction="vertical" autoSaveId="gs-sidebar">
-                <Panel defaultSize={36} minSize={12} className="flex flex-col">
-                  <div className="flex h-8 shrink-0 items-center px-4 font-sans text-2xs font-semibold uppercase tracking-[0.08em] text-pencil">
-                    Variables
-                  </div>
-                  <div className="min-h-0 flex-1 overflow-auto">
-                    <VariableList />
-                  </div>
-                </Panel>
-                <Handle direction="vertical" />
-                <Panel defaultSize={64} minSize={20} className="overflow-auto">
-                  <Inspector />
-                </Panel>
-              </PanelGroup>
-            </Panel>
+            {sidebarOpen && <Handle direction="horizontal" />}
+            {sidebarOpen && (
+              <Panel id="sidebar" order={2} defaultSize={30} minSize={18} className="flex flex-col bg-panel" data-testid="sidebar">
+                <PanelGroup direction="vertical" autoSaveId="gs-sidebar">
+                  <Panel defaultSize={36} minSize={12} className="flex flex-col">
+                    <div className="flex h-8 shrink-0 items-center px-4 font-sans text-2xs font-semibold uppercase tracking-[0.08em] text-pencil">
+                      Variables
+                    </div>
+                    <div className="min-h-0 flex-1 overflow-auto">
+                      <VariableList />
+                    </div>
+                  </Panel>
+                  <Handle direction="vertical" />
+                  <Panel defaultSize={64} minSize={20} className="overflow-auto">
+                    <Inspector />
+                  </Panel>
+                </PanelGroup>
+              </Panel>
+            )}
           </PanelGroup>
         </Panel>
       </PanelGroup>
