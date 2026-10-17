@@ -46,7 +46,7 @@ async def lifespan(app: FastAPI):
     await session.stop()
 
 
-app = FastAPI(title="GeoSandbox", lifespan=lifespan)
+app = FastAPI(title="geo-sandbox", lifespan=lifespan)
 
 
 @app.get("/api/snippets")

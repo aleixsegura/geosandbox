@@ -39,7 +39,7 @@ def main() -> int:
             env={**os.environ, "GEOSANDBOX_BACKEND_PORT": str(BACKEND_PORT), "GEOSANDBOX_FRONTEND_PORT": str(FRONTEND_PORT)},
         ),
     ]
-    print(f"\n  GeoSandbox → http://127.0.0.1:{FRONTEND_PORT}\n", flush=True)
+    print(f"\n  geo-sandbox → http://127.0.0.1:{FRONTEND_PORT}\n", flush=True)
 
     def stop(*_: object) -> None:
         for p in procs:

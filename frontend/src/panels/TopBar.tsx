@@ -52,7 +52,7 @@ export default function TopBar() {
   const status = STATUS[kernel];
   return (
     <header className="flex h-11 shrink-0 items-center gap-1 border-b border-rule bg-panel px-3">
-      <span className="mr-3 font-sans text-[0.95rem] font-semibold tracking-tight text-emph">GeoSandbox</span>
+      <span className="mr-3 font-sans text-[0.95rem] font-semibold tracking-tight text-emph">geo-sandbox</span>
       <select
         className="gs-select"
         value=""

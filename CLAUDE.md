@@ -1,6 +1,6 @@
 # CLAUDE.md
 
-# GeoSandbox
+# geo-sandbox
 
 Local sandbox for learning interactively popular geospatial software libraries (Shapely, GDAL, Pyproj, Rasterio and xarray): Monaco editor on the left, deck.gl canvas on the right.
 
