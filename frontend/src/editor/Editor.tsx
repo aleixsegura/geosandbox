@@ -11,7 +11,6 @@ import { defineTheme, MONACO_THEME } from "./themes";
 type Editor = Monaco.editor.IStandaloneCodeEditor;
 
 const CODE_KEY = "geosandbox.code";
-const DEFAULT_SNIPPET = "shapely_basics";
 
 /** Imperative handle for the toolbar and the snippet picker. */
 export const editorApi = {
@@ -218,14 +217,9 @@ export default function Editor() {
     });
     ed.onDidChangeCursorPosition(() => refreshCells(ed));
 
+    // Restore the last session's code; a first visit starts with an empty editor.
     const saved = localStorage.getItem(CODE_KEY);
-    if (saved) {
-      ed.setValue(saved);
-    } else {
-      fetch(`/api/snippets/${DEFAULT_SNIPPET}`)
-        .then((r) => (r.ok ? r.json() : null))
-        .then((s) => s && !ed.getValue() && ed.setValue(s.code));
-    }
+    if (saved) ed.setValue(saved);
     refreshCells(ed);
     ed.focus();
   };
