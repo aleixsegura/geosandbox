@@ -42,30 +42,28 @@ export interface PreparedGeometry {
   centroids: PointDatum[];
   bboxes: PathDatum[];
   origin: [number, number];
-  /** What still has to be added to positions to get real coordinates ([0,0] when absolute). */
-  offset: [number, number];
 }
 
 const MAX_ARROWS = 4000;
 const MAX_VERTEX_LABELS = 1500;
-const cache = { offsets: new WeakMap<object, PreparedGeometry>(), absolute: new WeakMap<object, PreparedGeometry>() };
+const cache = new WeakMap<object, PreparedGeometry>();
 
 const idx = (a?: NDArray) => (a?.data ?? new Uint32Array(0)) as Uint32Array;
 
 /**
- * ``absolute``: positions are real coordinates in Float64 (the orthographic
- * paper view ignores coordinateOrigin; deck.gl keeps fp64 precision itself).
- * Otherwise they stay Float32 offsets from ``meta.origin`` (map view).
+ * Positions become absolute Float64 coordinates (graph-paper units or lon/lat).
+ * The wire carries Float32 offsets from a Float64 origin; deck.gl splits
+ * Float64 positions into high/low parts itself, so precision is preserved in
+ * both views, and large extents (areas of use) are not distorted the way
+ * LNGLAT_OFFSETS would distort them.
  */
-export function prepareGeometry(p: Payload, absolute = false): PreparedGeometry {
-  const store = absolute ? cache.absolute : cache.offsets;
-  const hit = store.get(p.data);
+export function prepareGeometry(p: Payload): PreparedGeometry {
+  const hit = cache.get(p.data);
   if (hit) return hit;
   const d = p.data;
   const origin = (p.meta.origin ?? [0, 0]) as [number, number];
   const arr = (a?: NDArray): Coords => {
     const src = (a?.data ?? new Float32Array(0)) as Float32Array;
-    if (!absolute) return src;
     const out = new Float64Array(src.length);
     for (let i = 0; i < src.length; i += 2) {
       out[i] = src[i] + origin[0];
@@ -117,7 +115,7 @@ export function prepareGeometry(p: Payload, absolute = false): PreparedGeometry 
   const points: PointDatum[] = [];
   for (let i = 0; i < pointFeature.length; i++) points.push({ position: [pts[i * 2], pts[i * 2 + 1]], feature: pointFeature[i] });
 
-  const vertices = absolute ? new Float64Array(lines.length + rings.length) : new Float32Array(lines.length + rings.length);
+  const vertices = new Float64Array(lines.length + rings.length);
   vertices.set(lines, 0);
   vertices.set(rings, lines.length);
 
@@ -145,7 +143,7 @@ export function prepareGeometry(p: Payload, absolute = false): PreparedGeometry 
   for (let i = 0; i * 8 < bb.length; i++) {
     const box = bb.subarray(i * 8, i * 8 + 8);
     if (!Number.isFinite(box[0])) continue;
-    const closed = absolute ? new Float64Array(10) : new Float32Array(10);
+    const closed = new Float64Array(10);
     closed.set(box);
     closed.set(box.subarray(0, 2), 8);
     bboxes.push({ path: closed, feature: i, ring: true });
@@ -161,8 +159,7 @@ export function prepareGeometry(p: Payload, absolute = false): PreparedGeometry 
     centroids,
     bboxes,
     origin,
-    offset: absolute ? [0, 0] : origin,
   };
-  store.set(p.data, prepared);
+  cache.set(p.data, prepared);
   return prepared;
 }

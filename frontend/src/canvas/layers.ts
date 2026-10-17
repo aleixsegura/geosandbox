@@ -37,18 +37,15 @@ const ARROW_ICON =
   );
 const ARROW_MAPPING = { arrow: { x: 0, y: 0, width: 32, height: 32, mask: true } };
 
-function coordinateProps(mode: Mode, origin: [number, number]): any {
-  // The orthographic paper view ignores coordinateOrigin, so paper positions are absolute.
-  return mode === "map"
-    ? { coordinateSystem: COORDINATE_SYSTEM.LNGLAT_OFFSETS, coordinateOrigin: [origin[0], origin[1], 0] }
-    : { coordinateSystem: COORDINATE_SYSTEM.CARTESIAN };
+// Positions are absolute Float64 (see prepareGeometry): lon/lat on the map, plain units on paper.
+function coordinateProps(mode: Mode): any {
+  return { coordinateSystem: mode === "map" ? COORDINATE_SYSTEM.LNGLAT : COORDINATE_SYSTEM.CARTESIAN };
 }
 
-/** Fade-in scale around the variable's center (origin), in whichever position space the layer uses. */
-function growMatrix(mode: Mode, origin: [number, number], t: number): Matrix4 | null {
+/** Fade-in scale around the variable's center. */
+function growMatrix(origin: [number, number], t: number): Matrix4 | null {
   if (t >= 1) return null;
   const s = 0.94 + 0.06 * t;
-  if (mode === "map") return new Matrix4().scale([s, s, 1]);
   return new Matrix4().translate([origin[0], origin[1], 0]).scale([s, s, 1]).translate([-origin[0], -origin[1], 0]);
 }
 
@@ -82,10 +79,10 @@ function geometryLayers(
   t: number,
   pickable: boolean,
 ): Layer[] {
-  const g = prepareGeometry(p, ctx.mode === "paper");
-  const coords = coordinateProps(ctx.mode, g.origin);
+  const g = prepareGeometry(p);
+  const coords = coordinateProps(ctx.mode);
   const invalid = new Set<number>((p.meta.invalid ?? []).map((i: any) => i.feature));
-  const modelMatrix = growMatrix(ctx.mode, g.origin, t);
+  const modelMatrix = growMatrix(g.origin, t);
   const common = { ...coords, modelMatrix, opacity: t, pickable, parameters: { depthTest: false } as any };
   const sel = ctx.selected;
   const isSelected = sel?.name === p.name;
@@ -190,8 +187,8 @@ function geometryLayers(
 }
 
 function overlayLayers(id: string, p: Payload, color: RGB, ctx: LayerContext, t: number): Layer[] {
-  const g = prepareGeometry(p, ctx.mode === "paper");
-  const coords = coordinateProps(ctx.mode, g.origin);
+  const g = prepareGeometry(p);
+  const coords = coordinateProps(ctx.mode);
   const ink = hexToRgb(ctx.theme.ink);
   const pencil = hexToRgb(ctx.theme.pencil);
   const paper = hexToRgb(ctx.theme.paper);
@@ -201,7 +198,7 @@ function overlayLayers(id: string, p: Payload, color: RGB, ctx: LayerContext, t:
   // Problem locations of invalid geometries.
   const problems = (p.meta.invalid ?? [])
     .filter((i: any) => i.display)
-    .map((i: any) => ({ ...i, display: [i.display[0] + g.origin[0] - g.offset[0], i.display[1] + g.origin[1] - g.offset[1]] }));
+    .map((i: any) => ({ ...i, display: [i.display[0] + g.origin[0], i.display[1] + g.origin[1]] }));
   if (problems.length) {
     layers.push(
       new ScatterplotLayer({
@@ -216,24 +213,6 @@ function overlayLayers(id: string, p: Payload, color: RGB, ctx: LayerContext, t:
         lineWidthUnits: "pixels",
         getLineWidth: 1.5,
         pickable: true,
-        ...common,
-      }),
-      new TextLayer({
-        id: `${id}-problem-label`,
-        data: problems,
-        getPosition: (d: any) => d.display,
-        getText: (d: any) => String(d.reason).replace(/\[.*$/, "").toLowerCase(),
-        fontFamily: "Caveat",
-        fontWeight: 600,
-        getSize: 18,
-        getColor: rgba(RED, 255),
-        getPixelOffset: [12, 12],
-        getTextAnchor: "start",
-        getAlignmentBaseline: "top",
-        fontSettings: { sdf: true, fontSize: 64, buffer: 8 },
-        outlineWidth: 4,
-        outlineColor: rgba(paper, 230),
-        characterSet: "auto",
         ...common,
       }),
     );
@@ -311,6 +290,7 @@ interface LabelSpec {
   text: string;
   color: [number, number, number, number];
   offset: [number, number];
+  size: number;
 }
 
 function labelSpec(entry: VarEntry, text: string, ctx: LayerContext, t: number, color: RGB): LabelSpec | null {
@@ -324,7 +304,23 @@ function labelSpec(entry: VarEntry, text: string, ctx: LayerContext, t: number, 
     text,
     color: rgba(mix(color, ink, 0.25), 255 * t),
     offset: [6, -2],
+    size: LABEL_SIZE,
   };
+}
+
+/** Handwritten notes next to the problem spots of invalid geometries. */
+function problemLabels(p: Payload, t: number): LabelSpec[] {
+  const g = prepareGeometry(p);
+  return (p.meta.invalid ?? [])
+    .filter((i: any) => i.display)
+    .map((i: any) => ({
+      // Label layer positions are absolute (paper) or lng/lat (map).
+      position: [i.display[0] + g.origin[0], i.display[1] + g.origin[1]] as [number, number],
+      text: String(i.reason).replace(/\[.*$/, "").toLowerCase(),
+      color: rgba(RED, 255 * t),
+      offset: [12, 28] as [number, number],
+      size: 18,
+    }));
 }
 
 const LABEL_SIZE = 21;
@@ -335,16 +331,17 @@ function layoutLabels(labels: LabelSpec[], project?: (xy: [number, number]) => [
   const placed: [number, number, number, number][] = [];
   for (const l of labels) {
     const [x, y] = project(l.position);
-    const w = l.text.length * LABEL_SIZE * 0.42 + 8;
+    const w = l.text.length * l.size * 0.42 + 8;
+    const [ox, oy] = l.offset;
     let dy = 0;
     for (let attempt = 0; attempt < 8; attempt++) {
-      const r: [number, number, number, number] = [x + 6, y - LABEL_SIZE + dy, x + 6 + w, y + dy];
+      const r: [number, number, number, number] = [x + ox, y + oy + dy - l.size, x + ox + w, y + oy + dy];
       if (!placed.some((q) => r[0] < q[2] && r[2] > q[0] && r[1] < q[3] && r[3] > q[1])) {
         placed.push(r);
-        l.offset = [6, -2 + dy];
+        l.offset = [ox, oy + dy];
         break;
       }
-      dy += LABEL_SIZE - 3;
+      dy += l.size - 3;
     }
   }
 }
@@ -360,7 +357,7 @@ function labelLayer(labels: LabelSpec[], ctx: LayerContext): Layer {
     getPixelOffset: (d: any) => d.offset,
     fontFamily: "Caveat",
     fontWeight: 600,
-    getSize: LABEL_SIZE,
+    getSize: (d: any) => d.size,
     getTextAnchor: "start",
     getAlignmentBaseline: "bottom",
     fontSettings: { sdf: true, fontSize: 72, buffer: 10 },
@@ -455,13 +452,14 @@ function transformLayers(id: string, entry: VarEntry, ctx: LayerContext, t: numb
   const src = p.data.src.data as Float32Array;
   const dst = p.data.dst.data as Float32Array;
   const flags = p.data.flags.data as Uint8Array;
+  const [ox, oy] = p.meta.origin as [number, number];
   const pairs = Array.from({ length: flags.length }, (_, i) => ({
     i,
-    src: [src[i * 2], src[i * 2 + 1]] as [number, number],
-    dst: [dst[i * 2], dst[i * 2 + 1]] as [number, number],
+    src: [src[i * 2] + ox, src[i * 2 + 1] + oy] as [number, number],
+    dst: [dst[i * 2] + ox, dst[i * 2 + 1] + oy] as [number, number],
     ok: flags[i] === 1,
   })).filter((d) => Number.isFinite(d.src[0]) && Number.isFinite(d.dst[0]));
-  const coords = coordinateProps("map", p.meta.origin);
+  const coords = coordinateProps("map");
   const paper = hexToRgb(ctx.theme.paper);
   const a = ghost ? 0.35 : 1;
   const common = { ...coords, opacity: ghost ? 1 : t, parameters: { depthTest: false } as any };
@@ -512,7 +510,11 @@ export function buildLayers(entries: VarEntry[], ctx: LayerContext): Layer[] {
   const top: Layer[] = []; // overlays
   const labels: LabelSpec[] = [];
 
-  for (const entry of entries) {
+  // The selected variable is drawn last, so it is never hidden under another one.
+  const ordered = ctx.selected
+    ? [...entries.filter((e) => e.name !== ctx.selected!.name), ...entries.filter((e) => e.name === ctx.selected!.name)]
+    : entries;
+  for (const entry of ordered) {
     const p = entry.payload;
     const disp = displayOf(p, ctx.styles[entry.name]);
     if (!entry.visible || !disp || disp.mode !== ctx.mode) continue;
@@ -546,6 +548,7 @@ export function buildLayers(entries: VarEntry[], ctx: LayerContext): Layer[] {
           ),
         );
         top.push(...overlayLayers(id, p, color, ctx, t));
+        labels.push(...problemLabels(p, t));
         const label = labelSpec(entry, entry.name, ctx, t, color);
         if (label) labels.push(label);
         break;

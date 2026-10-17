@@ -75,14 +75,13 @@ export function describeHover(
   const role = parsed.role.replace(/^-/, "");
 
   if (role === "vertices" && info.index >= 0) {
-    const g = prepareGeometry(p, mode === "paper");
-    const xy: [number, number] = [g.vertices[info.index * 2] + g.offset[0], g.vertices[info.index * 2 + 1] + g.offset[1]];
+    const g = prepareGeometry(p);
+    const xy: [number, number] = [g.vertices[info.index * 2], g.vertices[info.index * 2 + 1]];
     return { ...base, title: `${entry.name} · vertex`, rows: pointRows(xy, p.meta, mode) };
   }
   if (role === "points" && info.object) {
-    const g = prepareGeometry(p, mode === "paper");
     const o = info.object as any;
-    const xy: [number, number] = [o.position[0] + g.offset[0], o.position[1] + g.offset[1]];
+    const xy: [number, number] = [o.position[0], o.position[1]];
     return { ...base, title: `${entry.name} · point`, rows: pointRows(xy, p.meta, mode) };
   }
   if (role === "problem" && info.object) {
