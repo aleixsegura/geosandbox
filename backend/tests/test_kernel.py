@@ -78,3 +78,37 @@ async def test_restart_clears_state(kernel):
     assert rec.json("error")[0]["ename"] == "NameError"
     await run(session, rec, "print('after restart')")
     assert "after restart" in stdout(rec)
+
+
+async def test_only_changed_variables_are_sent(kernel):
+    session, rec = kernel
+    await run(session, rec, "v1 = {'a': 1}\nv2 = [1, 2]")
+    rec.clear()
+    await run(session, rec, "v2.append(3)")
+    names = [h["name"] for h, _ in rec.frames()]
+    assert names == ["v2"]
+
+
+async def test_removed_variables_are_reported(kernel):
+    session, rec = kernel
+    await run(session, rec, "gone = 1")
+    rec.clear()
+    await run(session, rec, "del gone")
+    assert rec.json("remove") == [{"type": "remove", "names": ["gone"]}]
+
+
+async def test_show_uses_the_argument_source_as_label(kernel):
+    session, rec = kernel
+    rec.clear()
+    await run(session, rec, "show([1, 2][::-1])\nshow(3, label='three')")
+    names = [h["name"] for h, _ in rec.frames()]
+    assert names == ["[1, 2][::-1]", "three"]
+
+
+async def test_resync_resends_everything(kernel):
+    session, rec = kernel
+    await run(session, rec, "r1 = 'hello'")
+    rec.clear()
+    await session.resync()
+    names = {h["name"] for h, _ in rec.frames()}
+    assert "r1" in names
