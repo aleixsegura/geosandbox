@@ -51,7 +51,7 @@ def encode(payload: dict[str, Any]) -> tuple[dict[str, Any], list[memoryview]]:
         if isinstance(value, np.ndarray):
             arr = _wire_array(value)
             descriptors.append({"dtype": str(arr.dtype), "shape": list(arr.shape)})
-            buffers.append(memoryview(arr).cast("B"))
+            buffers.append(memoryview(arr.reshape(-1).view(np.uint8)))
             return {"$buf": len(buffers) - 1}
         if isinstance(value, dict):
             return {str(k): walk(v) for k, v in value.items()}
