@@ -261,3 +261,6 @@ export const useStore = create<State>((set, get) => ({
 }));
 
 export { rasterMeta };
+
+// Exposed for end-to-end tests.
+(window as any).__store = useStore;

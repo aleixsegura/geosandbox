@@ -48,6 +48,12 @@ export const editorApi = {
     const code = model.getLinesContent().slice(start - 1, end).join("\n");
     execute(dedent(code), start - 1, `selection · lines ${start}–${end}`);
   },
+  /** Lines carrying a kernel error marker (used by end-to-end tests). */
+  errorLines(): number[] {
+    const model = this.editor?.getModel();
+    if (!model) return [];
+    return monaco.editor.getModelMarkers({ owner: "kernel", resource: model.uri }).map((m) => m.startLineNumber);
+  },
   setCode(code: string): void {
     const ed = this.editor;
     if (!ed) return;
