@@ -13,15 +13,15 @@ parcel = Polygon(
 print(parcel.area, parcel.is_valid)
 
 # %% Lines have a direction (see the small arrows)
-river = LineString([(-4, 10), (2, 12), (8, 10.5), (14, 13), (18, 11)])
-wells = MultiPoint([(15, 2), (17, 4), (16, 6.5)])
+river = LineString([(-3, 10), (3, 6.5), (8, 7.5), (13, 3.5), (19, 5)])
+wells = MultiPoint([(15.5, -1.5), (18, 0.5), (20, -2)])
 
 # %% An invalid "bow-tie" polygon: drawn in red, the problem is marked
-bowtie = Polygon([(20, 0), (26, 6), (26, 0), (20, 6)])
+bowtie = Polygon([(23, 3), (29, 9), (29, 3), (23, 9)])
 print(explain_validity(bowtie))
 
 # %% Buffer: change the distance and re-run this cell to see the ghost
-well = Point(16, 4)
+well = Point(17.5, -0.5)
 buffer_zone = well.buffer(2.5)
 
 # %% Difference: the parcel minus the river corridor
