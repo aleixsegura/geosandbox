@@ -1,0 +1,33 @@
+[workspace]
+name = "geosandbox"
+version = "0.1.0"
+description = "Local sandbox for learning Python geospatial libraries interactively"
+channels = ["conda-forge"]
+platforms = ["linux-64", "osx-arm64", "osx-64", "win-64"]
+
+[dependencies]
+python = "3.12.*"
+gdal = "*"
+libgdal-core = "*"
+rasterio = "*"
+shapely = ">=2"
+pyproj = "*"
+xarray = "*"
+rioxarray = "*"
+numpy = "*"
+geopandas = "*"
+fastapi = "*"
+uvicorn = "*"
+websockets = "*"
+jupyter_client = "*"
+ipykernel = "*"
+pytest = "*"
+pytest-asyncio = "*"
+httpx = "*"
+nodejs = "22.*"
+
+[tasks]
+dev = "python scripts/dev.py"
+test = "pytest backend/tests -q"
+e2e = { cmd = "npx playwright test", cwd = "frontend" }
+build = { cmd = "npm run build", cwd = "frontend" }

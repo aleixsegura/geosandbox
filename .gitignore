@@ -1,0 +1,16 @@
+# pixi
+.pixi/
+*.egg-info/
+__pycache__/
+.pytest_cache/
+
+# frontend
+node_modules/
+frontend/dist/
+frontend/test-results/
+frontend/playwright-report/
+frontend/e2e/screenshots/
+
+# misc
+.DS_Store
+*.log
