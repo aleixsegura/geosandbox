@@ -11,6 +11,7 @@ flagged, which is how swapped lat/lon mistakes show up.
 from __future__ import annotations
 
 import hashlib
+import sys
 from dataclasses import dataclass, field
 from typing import Any
 
@@ -226,6 +227,8 @@ def render_transform(rec: TransformRecord, name: str) -> dict[str, Any]:
         "display_bounds": [*finite.min(axis=0).tolist(), *finite.max(axis=0).tolist()] if len(finite) else None,
         "source": crs_summary(src_crs),
         "target": crs_summary(dst_crs),
+        "source_label": _short(src_crs),
+        "target_label": _short(dst_crs),
         "always_xy": rec.always_xy,
         "max_offset_m": float(np.nanmax(dist)) if ok.any() else None,
         "labels": labels,
@@ -242,6 +245,15 @@ def render_transform(rec: TransformRecord, name: str) -> dict[str, Any]:
 _ORIGINAL: dict[str, Any] = {}
 
 
+def _cell_directory() -> str | None:
+    try:
+        from ipykernel.compiler import get_tmp_directory
+
+        return get_tmp_directory()
+    except Exception:
+        return None
+
+
 @on_setup
 def patch_pyproj(session: Any) -> None:
     from pyproj import Transformer
@@ -250,24 +262,35 @@ def patch_pyproj(session: Any) -> None:
         return
     _ORIGINAL["transform"] = Transformer.transform
     _ORIGINAL["from_crs"] = Transformer.from_crs
-    active: dict[str, TransformRecord] = {}
+    active: dict[int, TransformRecord] = {}
 
     def from_crs(crs_from: Any, crs_to: Any, always_xy: bool = False, *args: Any, **kwargs: Any) -> Any:
         t = _ORIGINAL["from_crs"](crs_from, crs_to, always_xy, *args, **kwargs)
         t._gs_always_xy = bool(always_xy)
         return t
 
+    def label_for(t: Any) -> str:
+        # Name the record after the variable holding the transformer, when there is one.
+        for name, value in session.ip.user_ns.items():
+            if value is t and not name.startswith("_"):
+                return f"{name}.transform()"
+        return f"transform {_short(t.source_crs)} → {_short(t.target_crs)}"
+
+    cell_dir = _cell_directory()
+
     def transform(self: Any, xx: Any, yy: Any, *args: Any, **kwargs: Any) -> Any:
         out = _ORIGINAL["transform"](self, xx, yy, *args, **kwargs)
         direction = kwargs.get("direction", "FORWARD")
         forward = str(getattr(direction, "name", direction)).upper() == "FORWARD"
-        if forward and not session.rendering:
+        # Only calls written in a cell: libraries (GeoPandas' to_crs…) use pyproj too.
+        caller = sys._getframe(1).f_code.co_filename
+        from_cell = caller.startswith(cell_dir) if cell_dir else caller.startswith("<ipython-input")
+        if forward and from_cell and not session.rendering:
             try:
-                label = f"transform {_short(self.source_crs)} → {_short(self.target_crs)}"
-                rec = active.get(label)
+                rec = active.get(id(self))
                 if rec is None:
-                    rec = active[label] = TransformRecord(self, getattr(self, "_gs_always_xy", False))
-                    session.defer(rec, label)
+                    rec = active[id(self)] = TransformRecord(self, getattr(self, "_gs_always_xy", False))
+                    session.defer(rec, label_for(self))
                 rec.add(xx, yy, out)
             except Exception:
                 pass

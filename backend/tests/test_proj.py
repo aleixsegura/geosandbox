@@ -79,7 +79,10 @@ def test_transform_calls_are_logged_in_the_kernel():
         try:
             await run(session, rec, "from pyproj import Transformer\n"
                       "t = Transformer.from_crs('EPSG:4326', 'EPSG:25831', always_xy=True)\n"
-                      "x, y = t.transform([0.62, 0.63], [41.61, 41.62])")
+                      "x, y = t.transform([0.62, 0.63], [41.61, 41.62])\n"
+                      "Transformer.from_crs(4326, 25831).transform(41.6, 0.6)\n"
+                      "import geopandas as gpd\nfrom shapely import Point\n"
+                      "g = gpd.GeoSeries([Point(0.6, 41.6)], crs=4326).to_crs(25831)")
             return rec.frames()
         finally:
             await session.stop()
@@ -87,5 +90,9 @@ def test_transform_calls_are_logged_in_the_kernel():
     frames = asyncio.run(go())
     by_name = {h["name"]: h for h, _ in frames}
     assert by_name["t"]["kind"] == "transformer"
-    assert by_name["transform EPSG:4326 → EPSG:25831"]["meta"]["count"] == 2
+    assert by_name["t.transform()"]["meta"]["count"] == 2
     assert by_name["x"]["kind"] == "repr"  # 1-D arrays are listed, not drawn
+    # an anonymous transformer with the same CRS pair gets its own record
+    assert by_name["transform EPSG:4326 → EPSG:25831"]["meta"]["count"] == 1
+    # library-internal calls (GeoPandas' to_crs) are not logged
+    assert len([h for h in by_name.values() if h["kind"] == "transform"]) == 2
