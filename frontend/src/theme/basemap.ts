@@ -58,7 +58,7 @@ function luminance([r, g, b]: number[]): number {
   return (0.299 * r + 0.587 * g + 0.114 * b) / 255;
 }
 
-function reink(color: string, theme: Theme): string {
+function reink(color: string, theme: Theme, water: boolean): string {
   const c = parseColor(color);
   if (!c) return color;
   const ink = hexToRgb(theme.ink);
@@ -66,15 +66,13 @@ function reink(color: string, theme: Theme): string {
   const tint = hexToRgb(theme.gridMajor); // the notebook's blue-grey, for water
   // White → paper, black → ink: on a dark paper this inverts the map by itself.
   let out = mix(ink, paper, Math.pow(luminance(c), theme.dark ? 0.6 : 0.8));
-  const [r, g, b] = c;
-  const isWater = b > r + 15 && b >= g; // blue-ish fills
-  if (isWater) out = mix(out, tint, theme.dark ? 0.35 : 0.55);
+  if (water) out = mix(out, tint, theme.dark ? 0.35 : 0.6);
   return `rgba(${out[0]}, ${out[1]}, ${out[2]}, ${c[3]})`;
 }
 
-function walk(value: any, theme: Theme): any {
-  if (typeof value === "string") return parseColor(value) ? reink(value, theme) : value;
-  if (Array.isArray(value)) return value.map((v) => walk(v, theme));
+function walk(value: any, theme: Theme, water: boolean): any {
+  if (typeof value === "string") return parseColor(value) ? reink(value, theme, water) : value;
+  if (Array.isArray(value)) return value.map((v) => walk(v, theme, water));
   return value;
 }
 
@@ -86,8 +84,10 @@ export async function basemapStyle(theme: Theme): Promise<any | null> {
   const copy = structuredClone(style);
   for (const layer of copy.layers ?? []) {
     if (!layer.paint) continue;
+    // Water keeps a hint of the notebook's blue-grey ruling (labels excluded).
+    const water = /water/.test(layer.id) && layer.type !== "symbol";
     for (const [key, value] of Object.entries(layer.paint)) {
-      if (key.endsWith("color")) layer.paint[key] = walk(value, theme);
+      if (key.endsWith("color")) layer.paint[key] = walk(value, theme, water);
     }
     if (layer.type === "symbol" && layer.paint["text-halo-color"]) layer.paint["text-halo-color"] = `${theme.paper}cc`;
   }
