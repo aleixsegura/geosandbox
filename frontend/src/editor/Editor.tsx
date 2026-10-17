@@ -10,8 +10,6 @@ import { defineTheme, MONACO_THEME } from "./themes";
 
 type Editor = Monaco.editor.IStandaloneCodeEditor;
 
-const CODE_KEY = "geosandbox.code";
-
 /** Imperative handle for the toolbar and the snippet picker. */
 export const editorApi = {
   editor: null as Editor | null,
@@ -205,11 +203,8 @@ export default function Editor() {
       }
     });
 
-    let saveTimer = 0;
     ed.onDidChangeModelContent((e) => {
       refreshCells(ed);
-      window.clearTimeout(saveTimer);
-      saveTimer = window.setTimeout(() => localStorage.setItem(CODE_KEY, ed.getValue()), 300);
       const err = useStore.getState().errorLine;
       if (err && e.changes.some((c) => c.range.startLineNumber <= err.line && c.range.endLineNumber >= err.line)) {
         useStore.getState().setErrorLine(null);
@@ -217,9 +212,6 @@ export default function Editor() {
     });
     ed.onDidChangeCursorPosition(() => refreshCells(ed));
 
-    // Restore the last session's code; a first visit starts with an empty editor.
-    const saved = localStorage.getItem(CODE_KEY);
-    if (saved) ed.setValue(saved);
     refreshCells(ed);
     ed.focus();
   };
