@@ -12,6 +12,7 @@ const ROWS: [string, string][] = [
   ["M", "Cycle canvas: auto → paper → map"],
   ["3", "3D view of geometries with Z"],
   ["Esc", "Clear selection / close this panel"],
+  ["E", "Generate exercises with Claude"],
   ["?", "Show this help"],
 ];
 

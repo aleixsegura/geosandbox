@@ -11,6 +11,7 @@ from pathlib import Path
 from fastapi import FastAPI, HTTPException, WebSocket, WebSocketDisconnect
 from fastapi.staticfiles import StaticFiles
 
+from backend import exercises
 from backend.kernel import KernelSession, Message
 
 log = logging.getLogger("geosandbox")
@@ -60,6 +61,19 @@ def get_snippet(name: str) -> dict[str, str]:
     if path.parent != SNIPPETS.resolve() or not path.is_file():
         raise HTTPException(404, "snippet not found")
     return {"name": path.stem, "code": path.read_text()}
+
+
+@app.get("/api/exercises/status")
+def exercises_status() -> dict[str, object]:
+    return {"configured": exercises.api_key() is not None, "model": exercises.MODEL}
+
+
+@app.post("/api/exercises")
+async def generate_exercises(req: exercises.ExerciseRequest) -> dict[str, object]:
+    try:
+        return await exercises.generate(req)
+    except exercises.ExerciseError as exc:
+        raise HTTPException(exc.status, exc.message) from exc
 
 
 @app.websocket("/ws")

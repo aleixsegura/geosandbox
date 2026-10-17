@@ -32,4 +32,5 @@ export const TrashIcon = () => <Icon><path d="M4.5 6h11M8 6V4h4v2M6 6l.7 10h6.6L
 export const CubeIcon = () => <Icon><path d="M10 3l6 3.5v7L10 17l-6-3.5v-7z" /><path d="M4 6.5l6 3.5 6-3.5M10 10v7" /></Icon>;
 export const PauseIcon = () => <Icon><path d="M7 5v10M13 5v10" /></Icon>;
 export const SidebarIcon = () => <Icon><rect x="3" y="4" width="14" height="12" rx="1.5" /><path d="M12 4v12M13.8 7.5h1.4M13.8 10h1.4" /></Icon>;
+export const ExercisesIcon = () => <Icon><path d="M5 3.5h7l3 3v10H5z" /><path d="M12 3.5v3h3M7.5 10h5M7.5 13h3" /></Icon>;
 export const HelpIcon = () => <Icon><circle cx="10" cy="10" r="7" /><path d="M8 8a2 2 0 1 1 2.8 1.8c-.5.3-.8.7-.8 1.2v.5" /><circle cx="10" cy="14" r=".6" fill="currentColor" /></Icon>;

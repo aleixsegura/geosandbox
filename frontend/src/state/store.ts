@@ -61,6 +61,7 @@ interface State {
   sidebarOpen: boolean;
   /** Orbit view of geometries with Z (only shown while one is visible). */
   geometry3d: boolean;
+  exercisesOpen: boolean;
   colorOf: Record<string, VarColor>;
 
   upsert: (p: Payload) => void;
@@ -82,6 +83,7 @@ interface State {
   setHelpOpen: (open: boolean) => void;
   setSidebarOpen: (open: boolean) => void;
   setGeometry3d: (on: boolean) => void;
+  setExercisesOpen: (open: boolean) => void;
 }
 
 const GHOST_KINDS = new Set(["geometry", "transform"]);
@@ -161,6 +163,7 @@ export const useStore = create<State>((set, get) => ({
   helpOpen: false,
   sidebarOpen: false,
   geometry3d: false,
+  exercisesOpen: false,
   colorOf: {},
 
   upsert: (p) =>
@@ -255,6 +258,7 @@ export const useStore = create<State>((set, get) => ({
   setHelpOpen: (helpOpen) => set({ helpOpen }),
   setSidebarOpen: (sidebarOpen) => set({ sidebarOpen }),
   setGeometry3d: (geometry3d) => set({ geometry3d }),
+  setExercisesOpen: (exercisesOpen) => set({ exercisesOpen }),
 }));
 
 export { rasterMeta };

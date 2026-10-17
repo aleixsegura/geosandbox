@@ -12,6 +12,7 @@ frontend/playwright-report/
 frontend/e2e/screenshots/
 
 # misc
+.env
 .DS_Store
 *.log
 *.tsbuildinfo

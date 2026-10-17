@@ -5,6 +5,7 @@ import Canvas from "./canvas/Canvas";
 import Editor from "./editor/Editor";
 import Console from "./panels/Console";
 import Inspector from "./panels/Inspector";
+import ExercisesDialog from "./panels/ExercisesDialog";
 import ShortcutsOverlay from "./panels/ShortcutsOverlay";
 import TopBar from "./panels/TopBar";
 import VariableList from "./panels/VariableList";
@@ -22,6 +23,7 @@ function useGlobalShortcuts() {
       const s = useStore.getState();
       if (e.key === "Escape") {
         if (s.helpOpen) s.setHelpOpen(false);
+        else if (s.exercisesOpen) s.setExercisesOpen(false);
         else if (!typing) s.select(null);
         return;
       }
@@ -31,6 +33,7 @@ function useGlobalShortcuts() {
       else if (e.key === "c") s.clearAll();
       else if (e.key === "v") s.setSidebarOpen(!s.sidebarOpen);
       else if (e.key === "3") s.setGeometry3d(!s.geometry3d);
+      else if (e.key === "e") s.setExercisesOpen(true);
       else if (e.key === "g") s.setToggle("ghosts", !s.toggles.ghosts);
       else if (e.key === "m") s.setCanvasMode(s.canvasMode === "auto" ? "paper" : s.canvasMode === "paper" ? "map" : "auto");
     };
@@ -104,6 +107,7 @@ export default function App() {
         </Panel>
       </PanelGroup>
       <ShortcutsOverlay />
+      <ExercisesDialog />
     </div>
   );
 }

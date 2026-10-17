@@ -2,7 +2,7 @@ import { useEffect, useState, type ReactNode } from "react";
 
 import { editorApi } from "../editor/Editor";
 import { useStore } from "../state/store";
-import { HelpIcon, PlayAllIcon, PlayIcon, RestartIcon, SelectionIcon, SidebarIcon, StopIcon } from "../ui/icons";
+import { ExercisesIcon, HelpIcon, PlayAllIcon, PlayIcon, RestartIcon, SelectionIcon, SidebarIcon, StopIcon } from "../ui/icons";
 import { interrupt, restart } from "../ws/client";
 
 function Button({ onClick, title, children, testId, tone = "neutral" }: { onClick: () => void; title: string; children: ReactNode; testId?: string; tone?: "neutral" | "primary" }) {
@@ -34,6 +34,7 @@ export default function TopBar() {
   const setHelpOpen = useStore((s) => s.setHelpOpen);
   const sidebarOpen = useStore((s) => s.sidebarOpen);
   const setSidebarOpen = useStore((s) => s.setSidebarOpen);
+  const setExercisesOpen = useStore((s) => s.setExercisesOpen);
   const [snippets, setSnippets] = useState<{ name: string }[]>([]);
 
   useEffect(() => {
@@ -67,6 +68,9 @@ export default function TopBar() {
           </option>
         ))}
       </select>
+      <Button title="Generate exercises with Claude (E)" onClick={() => setExercisesOpen(true)} testId="exercises-open">
+        <ExercisesIcon /> Exercises
+      </Button>
       <div className="mx-2 h-5 w-px bg-rule" />
       <Button title="Run cell (Ctrl+Enter)" onClick={() => editorApi.runCell()} testId="run-cell" tone="primary">
         <PlayIcon /> Cell

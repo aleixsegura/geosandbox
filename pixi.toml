@@ -25,6 +25,7 @@ pytest = "*"
 pytest-asyncio = "*"
 httpx = "*"
 nodejs = "22.*"
+anthropic = ">=1.15.0,<2"
 
 [tasks]
 dev = "python scripts/dev.py"

@@ -16,6 +16,18 @@ Other tasks:
 
 The **Load snippet…** menu holds demo scripts from `snippets/`, one per library. In the editor, `Ctrl+Enter` runs the current `# %%` cell, `Shift+Enter` runs the whole file and `Ctrl+Shift+Enter` runs the selection. Press `C` (or the eraser in the canvas toolbar) to clear the canvas; the kernel keeps its variables and re-running a cell draws them again. Press `?` for every shortcut. Call `show(obj, label=None)` to draw something that isn't stored in a variable.
 
+## Exercises with Claude
+
+**Exercises** in the top bar (or `E`) asks Claude, through the Anthropic Messages API, for a set of exercises on a library: how many, level, language and an optional topic. They open in the editor, one `# %%` cell each with the statement, a hint and starter code that builds its own data.
+
+The backend reads the key from `ANTHROPIC_API_KEY`, or from a `.env` file at the project root (gitignored):
+
+```bash
+echo 'ANTHROPIC_API_KEY=sk-ant-...' > .env   # then restart pixi run dev
+```
+
+The key stays on the server. The model defaults to `claude-opus-5-5`; set `GEOSANDBOX_MODEL` to use another one.
+
 ## Architecture in ten lines
 
 1. `backend/main.py` is a FastAPI app bound to 127.0.0.1. Each browser tab opens one WebSocket, and all tabs share one persistent IPython kernel (`jupyter_client`).
