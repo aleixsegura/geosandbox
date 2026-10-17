@@ -1,0 +1,237 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Theme variables are written by applyTheme() (src/theme/themes.ts). */
+:root {
+  --paper: 242 240 235;
+  --panel: 247 246 242;
+  --sunken: 235 232 225;
+  --ink: 43 43 43;
+  --emph: 28 28 28;
+  --pencil: 110 106 100;
+  --faint: 162 157 149;
+  --rule: 220 215 205;
+  --accent: 38 139 210;
+  --danger: 220 50 47;
+  --ok: 133 153 0;
+  --warn: 181 137 0;
+  --margin-line: #e3aaa5;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+  margin: 0;
+  overflow: hidden;
+}
+
+body {
+  background: rgb(var(--paper));
+  color: rgb(var(--ink));
+  font-family: "IBM Plex Sans", system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+* {
+  transition-timing-function: cubic-bezier(0.2, 0.7, 0.2, 1);
+}
+
+::selection {
+  background: rgb(var(--accent) / 0.2);
+}
+
+/* ---------- resize handles: a hairline that thickens on hover */
+.gs-handle {
+  position: relative;
+  background: rgb(var(--rule));
+  transition: background-color 200ms;
+}
+.gs-handle-horizontal {
+  width: 1px;
+}
+.gs-handle-vertical {
+  height: 1px;
+}
+.gs-handle::after {
+  content: "";
+  position: absolute;
+  z-index: 5;
+}
+.gs-handle-horizontal::after {
+  inset: 0 -4px;
+}
+.gs-handle-vertical::after {
+  inset: -4px 0;
+}
+.gs-handle[data-resize-handle-state="hover"],
+.gs-handle[data-resize-handle-state="drag"] {
+  background: rgb(var(--accent) / 0.6);
+}
+
+/* ---------- editor: notebook margin line, cells, errors */
+.gs-editor .monaco-editor .margin::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  right: 3px;
+  width: 1px;
+  background: var(--margin-line);
+  opacity: 0.55;
+  pointer-events: none;
+}
+[data-theme="solarized-light"] .gs-editor .monaco-editor .margin::after,
+[data-theme="solarized-dark"] .gs-editor .monaco-editor .margin::after {
+  opacity: 0.25;
+}
+
+.gs-cell-sep {
+  border-top: 1px dashed rgb(var(--pencil) / 0.35);
+}
+.gs-cell-active {
+  border-left: 2px solid rgb(var(--accent) / 0.55);
+  margin-left: 4px;
+}
+.gs-cell-run {
+  cursor: pointer;
+  opacity: 0.45;
+  transition: opacity 200ms;
+}
+.gs-cell-run::before {
+  content: "";
+  display: block;
+  width: 0;
+  height: 0;
+  margin: 6px 0 0 6px;
+  border-left: 7px solid rgb(var(--accent));
+  border-top: 5px solid transparent;
+  border-bottom: 5px solid transparent;
+}
+.gs-cell-run:hover {
+  opacity: 1;
+}
+.gs-error-line {
+  background: rgb(var(--danger) / 0.09);
+}
+.gs-error-glyph::before {
+  content: "";
+  display: block;
+  width: 8px;
+  height: 8px;
+  margin: 7px 0 0 6px;
+  border-radius: 9999px;
+  background: rgb(var(--danger));
+}
+
+/* ---------- form controls */
+.gs-select {
+  height: 1.75rem;
+  border: 1px solid rgb(var(--rule));
+  border-radius: 4px;
+  background: rgb(var(--panel));
+  color: rgb(var(--ink));
+  font: 400 0.75rem "IBM Plex Sans", sans-serif;
+  padding: 0 1.6rem 0 0.5rem;
+  appearance: none;
+  background-image: linear-gradient(45deg, transparent 50%, rgb(var(--pencil)) 50%),
+    linear-gradient(135deg, rgb(var(--pencil)) 50%, transparent 50%);
+  background-position: calc(100% - 12px) 50%, calc(100% - 8px) 50%;
+  background-size: 4px 4px;
+  background-repeat: no-repeat;
+  transition: border-color 200ms;
+}
+.gs-select:hover,
+.gs-select:focus {
+  border-color: rgb(var(--pencil));
+  outline: none;
+}
+.gs-select option {
+  background: rgb(var(--panel));
+}
+
+.gs-check {
+  appearance: none;
+  width: 14px;
+  height: 14px;
+  flex-shrink: 0;
+  border: 1.5px solid var(--check);
+  border-radius: 3px;
+  background: transparent;
+  cursor: pointer;
+  transition: background-color 200ms;
+}
+.gs-check:checked {
+  background: var(--check);
+  box-shadow: inset 0 0 0 2px rgb(var(--panel));
+}
+
+.gs-range {
+  appearance: none;
+  height: 18px;
+  background: transparent;
+  cursor: pointer;
+}
+.gs-range::-webkit-slider-runnable-track {
+  height: 2px;
+  background: rgb(var(--rule));
+  border-radius: 2px;
+}
+.gs-range::-webkit-slider-thumb {
+  appearance: none;
+  width: 12px;
+  height: 12px;
+  margin-top: -5px;
+  border-radius: 9999px;
+  background: rgb(var(--panel));
+  border: 1.5px solid rgb(var(--accent));
+}
+.gs-range::-moz-range-track {
+  height: 2px;
+  background: rgb(var(--rule));
+}
+.gs-range::-moz-range-thumb {
+  width: 10px;
+  height: 10px;
+  border-radius: 9999px;
+  background: rgb(var(--panel));
+  border: 1.5px solid rgb(var(--accent));
+}
+
+/* ---------- micro-animations */
+@keyframes gs-fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+.gs-fade {
+  animation: gs-fade-in 220ms both;
+}
+@keyframes gs-pulse {
+  50% {
+    opacity: 0.35;
+  }
+}
+.gs-pulse {
+  animation: gs-pulse 1.1s ease-in-out infinite;
+}
+.gs-busy {
+  animation: gs-pulse 1.1s ease-in-out infinite;
+}
+
+/* ---------- scrollbars */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: rgb(var(--pencil) / 0.3) transparent;
+}
+
+/* ---------- maplibre */
+.maplibregl-map {
+  font-family: "IBM Plex Sans", sans-serif;
+}
