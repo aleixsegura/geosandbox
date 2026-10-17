@@ -137,12 +137,16 @@ export default function Canvas() {
     return vp.getBounds() as Bounds; // [minLng, minLat, maxLng, maxLat]
   };
 
-  // Auto-fit: on mode change, on explicit request, and when new content lands outside the view.
+  // Auto-fit: on explicit request (F / toolbar), immediately…
   useEffect(() => {
-    fit();
-    seen.current = new Map(visible.map((e) => [e.name, e.updatedAt]));
+    if (fitRequest) fit();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [mode, fitRequest, size.width > 0 && size.height > 0]);
+  }, [fitRequest]);
+
+  // …and after a mode switch, everything visible counts as new content (fitted below).
+  useEffect(() => {
+    seen.current = new Map();
+  }, [mode]);
 
   // New content is fitted once it stops arriving (a run streams variables one by one).
   const fitTimer = useRef(0);
@@ -168,7 +172,9 @@ export default function Canvas() {
       mode === "paper"
         ? new OrthographicViewport({ width: size.width, height: size.height, target: [...paperView.target, 0], zoom: paperView.zoom, flipY })
         : new WebMercatorViewport({ ...mapView, width: size.width, height: size.height });
-    return (xy: [number, number]) => viewport.project(xy) as [number, number];
+    const fn = (xy: [number, number]) => viewport.project(xy) as [number, number];
+    (window as any).__gsProject = fn; // end-to-end tests aim the mouse with it
+    return fn;
   }, [mode, size.width, size.height, paperView, mapView, flipY]);
 
   const layers = useMemo(

@@ -105,7 +105,6 @@ export default function GraphPaper({ view, width, height, flipY, theme }: Props)
     ctx.fillStyle = theme.paper;
     ctx.globalAlpha = 0.85;
     ctx.fillRect(0, height - 18, width, 18);
-    ctx.fillRect(0, 0, 0, height);
     ctx.globalAlpha = 1;
     ctx.fillStyle = theme.pencil;
     ctx.textBaseline = "alphabetic";
