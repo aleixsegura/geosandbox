@@ -11,7 +11,7 @@ pixi run dev     # backend + frontend → http://127.0.0.1:5173
 
 Other tasks:
 - `pixi run test` runs the backend tests (pytest: every renderer plus a real kernel).
-- `pixi run e2e` runs the Playwright tests. They load every snippet, check that it renders and save screenshots to `frontend/e2e/screenshots/`.
+- `pixi run e2e` runs the Playwright tests on their own servers (ports 5174 and 8766, with their own kernel), so they never touch a running `pixi run dev`. They load every snippet, check that it renders and save screenshots to `frontend/e2e/screenshots/`.
 - `pixi run build` builds the production frontend. Once `frontend/dist` exists, the backend serves it itself at http://127.0.0.1:8765.
 
 The **Load snippet…** menu holds demo scripts from `snippets/`, one per library. In the editor, `Ctrl+Enter` runs the current `# %%` cell, `Shift+Enter` runs the whole file and `Ctrl+Shift+Enter` runs the selection. Press `C` (or the eraser in the canvas toolbar) to clear the canvas; the kernel keeps its variables and re-running a cell draws them again. Press `?` for every shortcut. Call `show(obj, label=None)` to draw something that isn't stored in a variable.

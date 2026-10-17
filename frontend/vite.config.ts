@@ -1,13 +1,14 @@
 import react from "@vitejs/plugin-react";
 import { defineConfig } from "vite";
 
-const BACKEND = "127.0.0.1:8765";
+// Ports come from scripts/dev.py, so the e2e suite can run beside `pixi run dev`.
+const BACKEND = `127.0.0.1:${process.env.GEOSANDBOX_BACKEND_PORT ?? 8765}`;
 
 export default defineConfig({
   plugins: [react()],
   server: {
     host: "127.0.0.1",
-    port: 5173,
+    port: Number(process.env.GEOSANDBOX_FRONTEND_PORT ?? 5173),
     strictPort: true,
     proxy: {
       "/ws": { target: `ws://${BACKEND}`, ws: true },

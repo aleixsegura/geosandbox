@@ -16,6 +16,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 FRONTEND = ROOT / "frontend"
 BACKEND_PORT = int(os.environ.get("GEOSANDBOX_BACKEND_PORT", "8765"))
+FRONTEND_PORT = int(os.environ.get("GEOSANDBOX_FRONTEND_PORT", "5173"))
 
 
 def main() -> int:
@@ -32,9 +33,13 @@ def main() -> int:
             [sys.executable, "-m", "uvicorn", "backend.main:app", "--host", "127.0.0.1", "--port", str(BACKEND_PORT)],
             cwd=ROOT,
         ),
-        subprocess.Popen([npm, "run", "dev"], cwd=FRONTEND),
+        subprocess.Popen(
+            [npm, "run", "dev"],
+            cwd=FRONTEND,
+            env={**os.environ, "GEOSANDBOX_BACKEND_PORT": str(BACKEND_PORT), "GEOSANDBOX_FRONTEND_PORT": str(FRONTEND_PORT)},
+        ),
     ]
-    print("\n  GeoSandbox → http://127.0.0.1:5173\n", flush=True)
+    print(f"\n  GeoSandbox → http://127.0.0.1:{FRONTEND_PORT}\n", flush=True)
 
     def stop(*_: object) -> None:
         for p in procs:
