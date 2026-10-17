@@ -1,27 +1,26 @@
 import type * as Monaco from "monaco-editor/esm/vs/editor/editor.api";
 
-import { SOLARIZED, THEME as t } from "../theme/themes";
+import { SYNTAX as s, THEME as t } from "../theme/themes";
 
 const strip = (hex: string) => hex.replace("#", "");
 
 export const MONACO_THEME = "notebook";
 
 export function defineTheme(monaco: typeof Monaco): void {
-  const s = SOLARIZED;
   monaco.editor.defineTheme(MONACO_THEME, {
     base: "vs",
     inherit: true,
     rules: [
       { token: "", foreground: strip(t.ink) },
-      { token: "comment", foreground: strip("#8c877f"), fontStyle: "italic" },
-      { token: "keyword", foreground: strip(s.green) },
-      { token: "string", foreground: strip(s.cyan) },
-      { token: "string.escape", foreground: strip(s.orange) },
-      { token: "number", foreground: strip(s.magenta) },
-      { token: "type", foreground: strip(s.yellow) },
+      { token: "comment", foreground: strip(s.comment), fontStyle: "italic" },
+      { token: "keyword", foreground: strip(s.keyword), fontStyle: "bold" },
+      { token: "string", foreground: strip(s.string) },
+      { token: "string.escape", foreground: strip(s.escape) },
+      { token: "number", foreground: strip(s.number) },
+      { token: "type", foreground: strip(s.type) },
       { token: "identifier", foreground: strip(t.ink) },
       { token: "delimiter", foreground: strip(t.pencil) },
-      { token: "tag", foreground: strip(s.blue) },
+      { token: "tag", foreground: strip(s.type) },
     ],
     colors: {
       "editor.background": t.paper,
@@ -47,7 +46,7 @@ export function defineTheme(monaco: typeof Monaco): void {
       "editorSuggestWidget.highlightForeground": t.accent,
       "editorHoverWidget.background": t.panel,
       "editorHoverWidget.border": t.rule,
-      "editorError.foreground": s.red,
+      "editorError.foreground": t.danger,
       "editorOverviewRuler.border": "#00000000",
       "scrollbar.shadow": "#00000000",
       "scrollbarSlider.background": `${t.pencil}33`,

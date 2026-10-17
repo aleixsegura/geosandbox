@@ -19,7 +19,7 @@ Local sandbox for learning interactively popular geospatial software libraries (
 - Arrays go over WebSocket as binary Float32, never JSON lists.
 - Colormaps and stretch are applied on the GPU in the frontend; changing them must not re-run code.
 - Shapely geometries have no CRS: Cartesian graph-paper canvas by default, map only when a CRS exists.
-- Respect the Notebook theme (the only theme). Variable colors come from `VAR_COLORS` (matplotlib tab10) in `frontend/src/theme/themes.ts`; no ad-hoc colors.
+- Respect the Notebook theme (the only theme). All colors come from `frontend/src/theme/themes.ts` (matplotlib tab10 for variables and UI accents, Pygments for syntax); no ad-hoc colors.
 - Server binds to 127.0.0.1 only.
 - After any rendering change, run the affected snippet with Playwright and check the screenshot.
 

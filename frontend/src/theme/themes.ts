@@ -1,27 +1,8 @@
 // Single source of truth for colors: CSS variables, deck.gl layers and Monaco
-// all read from here. Variables use matplotlib's tab10; Solarized supplies the
-// UI accents and the editor's syntax colors.
+// all read from here. Variables and UI accents use matplotlib's tab10; the editor
+// uses Pygments' default style, as Jupyter does.
 
 export type RGB = [number, number, number];
-
-export const SOLARIZED = {
-  base03: "#002b36",
-  base02: "#073642",
-  base01: "#586e75",
-  base00: "#657b83",
-  base0: "#839496",
-  base1: "#93a1a1",
-  base2: "#eee8d5",
-  base3: "#fdf6e3",
-  yellow: "#b58900",
-  orange: "#cb4b16",
-  red: "#dc322f",
-  magenta: "#d33682",
-  violet: "#6c71c4",
-  blue: "#268bd2",
-  cyan: "#2aa198",
-  green: "#859900",
-} as const;
 
 /**
  * Variable colors: matplotlib's tab10 (Python's default plot cycle) minus red,
@@ -73,10 +54,20 @@ export const THEME: Theme = {
   gridMajor: "#c3cfdc",
   axis: "#8797aa",
   margin: "#e3aaa5",
-  accent: SOLARIZED.blue,
-  danger: SOLARIZED.red,
-  ok: SOLARIZED.green,
-  warn: SOLARIZED.yellow,
+  accent: "#1f77b4", // tab10 blue
+  danger: "#d62728", // tab10 red
+  ok: "#2ca02c", // tab10 green
+  warn: "#ff7f0e", // tab10 orange
+};
+
+/** Python syntax colors: Pygments' default style, the highlighting Jupyter uses. */
+export const SYNTAX = {
+  keyword: "#008000",
+  string: "#ba2121",
+  escape: "#aa5d1f",
+  number: "#666666",
+  type: "#0000ff",
+  comment: "#3d7b7b",
 };
 
 export function hexToRgb(hex: string): RGB {
