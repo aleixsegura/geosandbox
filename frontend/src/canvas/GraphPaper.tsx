@@ -15,7 +15,7 @@ interface Props {
 }
 
 /** 1-2-5 step ≥ minimum world size. */
-function niceStep(min: number): number {
+export function niceStep(min: number): number {
   const exp = Math.floor(Math.log10(min));
   const base = 10 ** exp;
   for (const m of [1, 2, 5, 10]) if (m * base >= min) return m * base;

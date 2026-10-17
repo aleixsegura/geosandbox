@@ -30,6 +30,7 @@ function useGlobalShortcuts() {
       else if (e.key === "f") s.requestFit();
       else if (e.key === "c") s.clearAll();
       else if (e.key === "v") s.setSidebarOpen(!s.sidebarOpen);
+      else if (e.key === "3") s.setGeometry3d(!s.geometry3d);
       else if (e.key === "g") s.setToggle("ghosts", !s.toggles.ghosts);
       else if (e.key === "m") s.setCanvasMode(s.canvasMode === "auto" ? "paper" : s.canvasMode === "paper" ? "map" : "auto");
     };

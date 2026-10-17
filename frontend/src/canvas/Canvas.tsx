@@ -8,6 +8,7 @@ import { useStore, type VarEntry } from "../state/store";
 import { basemapStyle } from "../theme/basemap";
 import CanvasToolbar from "./CanvasToolbar";
 import { displayOf, resolveMode, unionBounds, type Bounds, type Mode } from "./display";
+import Geometry3D from "./Geometry3D";
 import GraphPaper, { type PaperView } from "./GraphPaper";
 import { buildLayers, parseLayerId, TRANSITION_MS } from "./layers";
 import Tooltip, { describeHover, type HoverInfo } from "./Tooltip";
@@ -68,6 +69,7 @@ export default function Canvas() {
   const styles = useStore((s) => s.rasterStyles);
   const canvasMode = useStore((s) => s.canvasMode);
   const fitRequest = useStore((s) => s.fitRequest);
+  const geometry3d = useStore((s) => s.geometry3d);
 
   const entries = useMemo(() => order.map((n) => vars[n]).filter(Boolean) as VarEntry[], [order, vars]);
   const mode: Mode = resolveMode(canvasMode, entries, styles);
@@ -207,6 +209,9 @@ export default function Canvas() {
   };
 
   const show3d = selected && styles[selected.name]?.show3d && vars[selected.name] ? vars[selected.name] : null;
+  const geometries = useMemo(() => visible.filter((e) => e.payload.kind === "geometry"), [visible.map((e) => `${e.name}:${e.updatedAt}`).join("|")]); // eslint-disable-line react-hooks/exhaustive-deps
+  const can3d = geometries.some((e) => e.payload.meta.has_z);
+  const orbit = geometry3d && can3d && !show3d;
 
   return (
     <div ref={container} className="relative h-full w-full overflow-hidden bg-paper" data-testid="canvas" data-mode={mode}>
@@ -214,6 +219,9 @@ export default function Canvas() {
         <Suspense fallback={null}>
           <Relief3D entry={show3d} />
         </Suspense>
+      ) : orbit ? (
+        // Remount per mode: paper and map have different frames and default exaggeration.
+        <Geometry3D key={mode} entries={geometries} mode={mode} />
       ) : (
         <>
           {mode === "paper" && <GraphPaper view={paperView} width={size.width} height={size.height} flipY={flipY} />}
@@ -241,7 +249,7 @@ export default function Canvas() {
           {hover && <Tooltip hover={hover} />}
         </>
       )}
-      <CanvasToolbar mode={mode} onFit={() => useStore.getState().requestFit()} />
+      <CanvasToolbar mode={mode} can3d={can3d} onFit={() => useStore.getState().requestFit()} />
     </div>
   );
 }

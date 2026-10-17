@@ -59,6 +59,8 @@ interface State {
   helpOpen: boolean;
   /** Variables + inspector sidebar; closed so the canvas gets the full width. */
   sidebarOpen: boolean;
+  /** Orbit view of geometries with Z (only shown while one is visible). */
+  geometry3d: boolean;
   colorOf: Record<string, VarColor>;
 
   upsert: (p: Payload) => void;
@@ -79,6 +81,7 @@ interface State {
   requestFit: () => void;
   setHelpOpen: (open: boolean) => void;
   setSidebarOpen: (open: boolean) => void;
+  setGeometry3d: (on: boolean) => void;
 }
 
 const GHOST_KINDS = new Set(["geometry", "transform"]);
@@ -157,6 +160,7 @@ export const useStore = create<State>((set, get) => ({
   fitRequest: 0,
   helpOpen: false,
   sidebarOpen: false,
+  geometry3d: false,
   colorOf: {},
 
   upsert: (p) =>
@@ -250,6 +254,7 @@ export const useStore = create<State>((set, get) => ({
   requestFit: () => set((s) => ({ fitRequest: s.fitRequest + 1 })),
   setHelpOpen: (helpOpen) => set({ helpOpen }),
   setSidebarOpen: (sidebarOpen) => set({ sidebarOpen }),
+  setGeometry3d: (geometry3d) => set({ geometry3d }),
 }));
 
 export { rasterMeta };

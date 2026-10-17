@@ -10,6 +10,7 @@ const ROWS: [string, string][] = [
   ["G", "Toggle ghosts (previous versions)"],
   ["V", "Show or hide variables and inspector"],
   ["M", "Cycle canvas: auto → paper → map"],
+  ["3", "3D view of geometries with Z"],
   ["Esc", "Clear selection / close this panel"],
   ["?", "Show this help"],
 ];

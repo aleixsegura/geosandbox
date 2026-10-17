@@ -4,6 +4,7 @@ const SHOTS = "e2e/screenshots";
 
 const SNIPPETS: { name: string; vars: string[]; mode: "paper" | "map"; select?: string }[] = [
   { name: "shapely_basics", vars: ["parcel", "river", "wells", "bowtie", "buffer_zone", "dry_land"], mode: "paper", select: "bowtie" },
+  { name: "shapely_3d", vars: ["boreholes", "trail", "roof", "footprint", "mast"], mode: "paper", select: "trail" },
   { name: "gdal_ogr", vars: ["ds", "seu_vella", "walk", "walk_dry"], mode: "map", select: "ds" },
   { name: "pyproj_crs", vars: ["wgs84", "utm31", "to_utm", "to_utm.transform()", "strict.transform()"], mode: "map", select: "strict.transform()" },
   { name: "rasterio_dem", vars: ["dem", "elevation", "slope_deg", "hillshade"], mode: "map", select: "dem" },
@@ -203,6 +204,39 @@ test("the editor starts empty and the canvas takes the full width until V opens 
   await expect(page.getByTestId("sidebar")).toBeVisible();
   await page.keyboard.press("v");
   await expect(page.getByTestId("sidebar")).toHaveCount(0);
+});
+
+test("geometries with Z orbit in 3D, on paper and on a map", async ({ page }) => {
+  const errors = collectErrors(page);
+  await boot(page);
+  await runSnippet(page, "shapely_3d");
+  await page.getByTestId("toggle-geometry3d").click();
+  await expect(page.getByTestId("geometry3d")).toBeVisible();
+  await page.waitForTimeout(1200);
+  await page.getByTestId("right-canvas").screenshot({ path: `${SHOTS}/geometry3d-paper.png` });
+
+  // Georeferenced: lon/lat becomes local metres; Z (metres) is exaggerated to stay visible.
+  await setCode(page, `# %%
+import geopandas as gpd
+from shapely import LineString
+ridge = gpd.GeoSeries([LineString([(300_000, 4_610_000, 180), (303_000, 4_612_000, 420), (306_000, 4_611_000, 260)])], crs=25831)
+`);
+  await runCellAt(page, 2);
+  await page.getByTestId("mode-map").click();
+  await expect(page.getByTestId("geometry3d")).toBeVisible();
+  await expect(page.getByTestId("z-scale")).not.toHaveValue("1");
+  await page.waitForTimeout(1200);
+  await page.getByTestId("right-canvas").screenshot({ path: `${SHOTS}/geometry3d-map.png` });
+
+  await page.getByTestId("back-to-2d").click();
+  await expect(page.getByTestId("geometry3d")).toHaveCount(0);
+  expect(errors).toEqual([]);
+});
+
+test("the 3D button is disabled without Z", async ({ page }) => {
+  await boot(page);
+  await runSnippet(page, "shapely_basics");
+  await expect(page.getByTestId("toggle-geometry3d")).toBeDisabled();
 });
 
 test("? opens the shortcuts overlay", async ({ page }) => {
