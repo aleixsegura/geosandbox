@@ -38,6 +38,15 @@ def test_large_array_is_downsampled(rt):
     assert out["meta"]["downsampled_from"] == [3000, 5000]
 
 
+def test_downsampled_rasterio_reports_original_transform(rt):
+    data = np.zeros((3000, 2500), np.float32)
+    _mem, ds = _memfile(data)
+    m = rt(ds, "big")["meta"]
+    assert m["transform"][0] == [30.0, 0.0, 300_000.0]
+    assert m["grid_transform"][0][0] == pytest.approx(30.0 * 2500 / m["display"]["width"], rel=0.5)
+    assert m["res"] == [30.0, 30.0]
+
+
 def test_rgb_image_hwc_is_transposed(rt):
     img = np.zeros((10, 12, 3), np.uint8)
     out = rt(img, "img")

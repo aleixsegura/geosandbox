@@ -25,6 +25,7 @@ MAX_SIDE = 2048
 MAX_BANDS = 64
 HIST_BINS = 64
 STATS_SAMPLE = 1_000_000
+WARP_CELLS = 16_000_000  # floats in a warped multi-band/cube grid
 
 
 # ---------------------------------------------------------------------------- core
@@ -87,9 +88,14 @@ def warp_to_3857(values: np.ndarray, valid: np.ndarray, transform: Any, crs: Any
     src_crs = _rio_crs(crs)
     left, bottom, right, top = _bounds(h, w, transform)
     dst_transform, dw, dh = calculate_default_transform(src_crs, "EPSG:3857", w, h, left, bottom, right, top)
-    scale = max(dw, dh) / MAX_SIDE
-    if scale > 1:
-        dw, dh = math.ceil(dw / scale), math.ceil(dh / scale)
+    # Small grids are warped at a finer resolution so rotated edges do not stair-step;
+    # values are still nearest-neighbour copies of source pixels.
+    side = max(dw, dh)
+    upsampled = min(side * 4, 1024 if b <= 4 else 384)
+    goal = min(max(side, upsampled), MAX_SIDE, int(math.sqrt(WARP_CELLS / b)))
+    scale = side / goal
+    if scale != 1:
+        dw, dh = max(1, math.ceil(dw / scale)), max(1, math.ceil(dh / scale))
         dst_transform = dst_transform * Affine.scale(scale)
     src = np.where(valid, values, np.nan).astype(np.float32)
     dst = np.full((b, dh, dw), np.nan, np.float32)
@@ -181,6 +187,12 @@ def raster_payload(
     display["height"] = int(shown_values.shape[1])
 
     src_h, src_w = full_shape[-2], full_shape[-1]
+    grid_transform = transform
+    if transform is not None and (src_w != w or src_h != h):
+        from affine import Affine
+
+        # ``transform`` describes the (possibly downsampled) grid; report the original one.
+        transform = transform * Affine.scale(w / src_w, h / src_h)
     meta = {
         "title": title,
         "shape": list(full_shape),
@@ -196,6 +208,7 @@ def raster_payload(
         "band_names": (band_names or [f"band {i + 1}" for i in range(b)]) if cube is None else None,
         "stats": bands,
         "stats_global": global_stats,
+        "grid_transform": _matrix(grid_transform),
         "display": display,
         "cube": cube,
         "warp_error": warp_error,
@@ -329,7 +342,6 @@ def render_rasterio(ds: Any, name: str) -> dict[str, Any] | None:
             "source": "rasterio",
             "path": ds.name,
             "driver": ds.driver,
-            "full_transform": _matrix(ds.transform),
             "bands_shown": n,
         },
     )
