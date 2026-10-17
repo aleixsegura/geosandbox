@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
 
 import { useStore, type Toggles } from "../state/store";
-import { AutoIcon, BboxIcon, CentroidIcon, FitIcon, GhostIcon, MapIcon, NumbersIcon, PaperIcon } from "../ui/icons";
+import { AutoIcon, BboxIcon, CentroidIcon, EraserIcon, FitIcon, GhostIcon, MapIcon, NumbersIcon, PaperIcon } from "../ui/icons";
 import type { Mode } from "./display";
 
 function ToolButton({ active, title, onClick, children, testId }: { active?: boolean; title: string; onClick: () => void; children: ReactNode; testId?: string }) {
@@ -34,6 +34,7 @@ export default function CanvasToolbar({ mode, onFit }: { mode: Mode; onFit: () =
   const toggles = useStore((s) => s.toggles);
   const setToggle = useStore((s) => s.setToggle);
   const setCanvasMode = useStore((s) => s.setCanvasMode);
+  const clearAll = useStore((s) => s.clearAll);
 
   return (
     <div className="absolute right-3 top-3 z-10 flex items-center gap-1 rounded-md border border-rule bg-panel/90 p-1 shadow-sm backdrop-blur-sm">
@@ -55,6 +56,9 @@ export default function CanvasToolbar({ mode, onFit }: { mode: Mode; onFit: () =
       <div className="mx-1 h-5 w-px bg-rule" />
       <ToolButton title="Fit to content — F" onClick={onFit} testId="fit">
         <FitIcon />
+      </ToolButton>
+      <ToolButton title="Clear the canvas (variables stay in the kernel) — C" onClick={clearAll} testId="clear-canvas">
+        <EraserIcon />
       </ToolButton>
     </div>
   );

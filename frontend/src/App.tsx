@@ -28,6 +28,7 @@ function useGlobalShortcuts() {
       if (typing || e.ctrlKey || e.metaKey || e.altKey) return;
       if (e.key === "?") s.setHelpOpen(!s.helpOpen);
       else if (e.key === "f") s.requestFit();
+      else if (e.key === "c") s.clearAll();
       else if (e.key === "g") s.setToggle("ghosts", !s.toggles.ghosts);
       else if (e.key === "m") s.setCanvasMode(s.canvasMode === "auto" ? "paper" : s.canvasMode === "paper" ? "map" : "auto");
     };

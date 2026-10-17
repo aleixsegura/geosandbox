@@ -27,6 +27,7 @@ export const ChevronIcon = ({ open }: { open: boolean }) => (
   <Icon style={{ transform: `rotate(${open ? 90 : 0}deg)`, transition: "transform 200ms" }}><path d="M8 5l5 5-5 5" /></Icon>
 );
 export const CopyIcon = () => <Icon><rect x="7" y="7" width="9" height="9" rx="1.5" /><path d="M13 7V4.5A1 1 0 0 0 12 3.5H4.5a1 1 0 0 0-1 1V12a1 1 0 0 0 1 1H7" /></Icon>;
+export const EraserIcon = () => <Icon><path d="M3.8 12.2l7.4-7.4a1.5 1.5 0 0 1 2.1 0l2.9 2.9a1.5 1.5 0 0 1 0 2.1L10 16.5H8.1z" /><path d="M7.4 8.6l4.9 4.9M10 16.5h6.5" /></Icon>;
 export const TrashIcon = () => <Icon><path d="M4.5 6h11M8 6V4h4v2M6 6l.7 10h6.6L14 6" /></Icon>;
 export const CubeIcon = () => <Icon><path d="M10 3l6 3.5v7L10 17l-6-3.5v-7z" /><path d="M4 6.5l6 3.5 6-3.5M10 10v7" /></Icon>;
 export const PauseIcon = () => <Icon><path d="M7 5v10M13 5v10" /></Icon>;

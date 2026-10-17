@@ -6,6 +6,7 @@ const ROWS: [string, string][] = [
   ["Ctrl + Shift + Enter", "Run the selection (or current line)"],
   ["Ctrl + Space", "Autocomplete from the live kernel"],
   ["F", "Fit the canvas to visible objects"],
+  ["C", "Clear the canvas (re-run code to draw again)"],
   ["G", "Toggle ghosts (previous versions)"],
   ["M", "Cycle canvas: auto → paper → map"],
   ["Esc", "Clear selection / close this panel"],

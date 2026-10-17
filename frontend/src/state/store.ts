@@ -192,6 +192,7 @@ export const useStore = create<State>((set, get) => ({
       };
     }),
 
+  /** Empty the canvas and variable list; the kernel keeps its namespace. */
   clearAll: () => set({ vars: {}, order: [], selected: null, rasterStyles: {} }),
 
   clearGhosts: () =>

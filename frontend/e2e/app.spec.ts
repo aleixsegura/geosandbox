@@ -175,6 +175,22 @@ test("hovering a vertex shows its coordinates", async ({ page }) => {
   expect(found).toMatch(/x, y\s+10, 10/);
 });
 
+test("clearing the canvas keeps the kernel; re-running draws again", async ({ page }) => {
+  await boot(page);
+  await setCode(page, "# %%\nfrom shapely import Point\nspot = Point(1, 2).buffer(1)\n");
+  await runCellAt(page, 2);
+  await expect(page.getByTestId("var-spot")).toBeVisible();
+  await page.getByTestId("clear-canvas").click();
+  await expect(page.getByTestId("var-list-empty")).toBeVisible();
+  await page.getByTestId("right-canvas").screenshot({ path: `${SHOTS}/cleared.png` });
+  await runCellAt(page, 2);
+  await expect(page.getByTestId("var-spot")).toBeVisible();
+  // Keyboard shortcut, outside the editor.
+  await page.getByTestId("canvas").click({ position: { x: 20, y: 200 } });
+  await page.keyboard.press("c");
+  await expect(page.getByTestId("var-list-empty")).toBeVisible();
+});
+
 test("? opens the shortcuts overlay", async ({ page }) => {
   await boot(page);
   await page.getByTestId("var-list-empty").click();
