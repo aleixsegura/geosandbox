@@ -207,7 +207,6 @@ export default function Canvas() {
   };
 
   const show3d = selected && styles[selected.name]?.show3d && vars[selected.name] ? vars[selected.name] : null;
-  const drawable = visible.length > 0;
 
   return (
     <div ref={container} className="relative h-full w-full overflow-hidden bg-paper" data-testid="canvas" data-mode={mode}>
@@ -241,20 +240,6 @@ export default function Canvas() {
           )}
           {hover && <Tooltip hover={hover} />}
         </>
-      )}
-      {!drawable && !show3d && (
-        <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
-          <div className="max-w-sm rounded-md bg-paper/80 px-5 py-4 text-center font-hand text-2xl leading-snug text-pencil">
-            {entries.length
-              ? mode === "map"
-                ? "nothing with a CRS is visible…"
-                : "nothing to draw on paper — try the Map view"
-              : "write some code and run it — geometries, rasters and CRS will appear here"}
-            <div className="mt-2 font-sans text-xs not-italic text-faint">
-              Shift+Enter runs everything · Ctrl+Enter runs the current cell
-            </div>
-          </div>
-        </div>
       )}
       <CanvasToolbar mode={mode} onFit={() => useStore.getState().requestFit()} />
     </div>
