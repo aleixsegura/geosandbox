@@ -8,7 +8,7 @@ import { Matrix4 } from "@math.gl/core";
 
 import type { RasterStyle, Toggles, VarEntry } from "../state/store";
 import { colormapLut } from "../theme/colormaps";
-import { accentRgb, hexToRgb, mix, THEME, type RGB } from "../theme/themes";
+import { hexToRgb, mix, THEME, varColorRgb, type RGB } from "../theme/themes";
 import type { NDArray, Payload } from "../ws/protocol";
 import { ColormapLayer } from "./ColormapLayer";
 import { displayOf, mercatorToLngLat, rasterOf, type Mode } from "./display";
@@ -27,7 +27,7 @@ export interface LayerContext {
 
 export const TRANSITION_MS = 260;
 const DASH = new PathStyleExtension({ dash: true });
-const RED = accentRgb("red");
+const RED = hexToRgb(THEME.danger);
 
 const ARROW_ICON =
   "data:image/svg+xml;charset=utf-8," +
@@ -518,7 +518,7 @@ export function buildLayers(entries: VarEntry[], ctx: LayerContext): Layer[] {
     const disp = displayOf(p, ctx.styles[entry.name]);
     if (!entry.visible || !disp || disp.mode !== ctx.mode) continue;
     const id = layerId(entry.name);
-    const color = accentRgb(entry.color);
+    const color = varColorRgb(entry.color);
     const t = progress(entry, ctx.now);
     const showGhost = ctx.toggles.ghosts && entry.ghost && displayOf(entry.ghost)?.mode === ctx.mode;
 

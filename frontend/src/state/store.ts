@@ -1,6 +1,6 @@
 import { create } from "zustand";
 
-import { ACCENTS, type AccentName } from "../theme/themes";
+import { VAR_COLOR_NAMES, type VarColor } from "../theme/themes";
 import { defaultColormap } from "../theme/colormaps";
 import type { Payload } from "../ws/protocol";
 
@@ -9,7 +9,7 @@ export interface VarEntry {
   payload: Payload;
   /** Previous version, drawn dashed after a re-run (geometry-like kinds only). */
   ghost: Payload | null;
-  color: AccentName;
+  color: VarColor;
   visible: boolean;
   /** performance.now() when the current version arrived: drives the fade/scale-in. */
   updatedAt: number;
@@ -57,7 +57,7 @@ interface State {
   pendingError: string | null;
   fitRequest: number;
   helpOpen: boolean;
-  colorOf: Record<string, AccentName>;
+  colorOf: Record<string, VarColor>;
 
   upsert: (p: Payload) => void;
   remove: (names: string[]) => void;
@@ -96,14 +96,14 @@ function hash(s: string): number {
   return h >>> 0;
 }
 
-/** Stable per name, distinct from colors in use while there are free accents. */
-function pickColor(name: string, used: Set<AccentName>): AccentName {
-  const start = hash(name) % ACCENTS.length;
-  for (let i = 0; i < ACCENTS.length; i++) {
-    const c = ACCENTS[(start + i) % ACCENTS.length];
+/** Stable per name, distinct from colors in use while there are free ones. */
+function pickColor(name: string, used: Set<VarColor>): VarColor {
+  const start = hash(name) % VAR_COLOR_NAMES.length;
+  for (let i = 0; i < VAR_COLOR_NAMES.length; i++) {
+    const c = VAR_COLOR_NAMES[(start + i) % VAR_COLOR_NAMES.length];
     if (!used.has(c)) return c;
   }
-  return ACCENTS[start];
+  return VAR_COLOR_NAMES[start];
 }
 
 function rasterMeta(p: Payload, datasetVar: string | null): Record<string, any> | null {

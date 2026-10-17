@@ -1,7 +1,7 @@
 import { displayOf } from "../canvas/display";
 import { useMode } from "../canvas/useMode";
 import { useStore, type VarEntry } from "../state/store";
-import { SOLARIZED } from "../theme/themes";
+import { VAR_COLORS } from "../theme/themes";
 import { Badge } from "../ui/bits";
 
 function summary(e: VarEntry): { text: string; badge?: { text: string; tone: "neutral" | "danger" | "accent" } } {
@@ -89,7 +89,7 @@ export default function VariableList() {
                 onClick={(ev) => ev.stopPropagation()}
                 onChange={(ev) => setVisible(name, ev.target.checked)}
                 className="gs-check"
-                style={{ ["--check" as any]: SOLARIZED[e.color] }}
+                style={{ ["--check" as any]: VAR_COLORS[e.color] }}
                 aria-label={`Show ${name}`}
               />
             ) : (

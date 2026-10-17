@@ -1,6 +1,6 @@
 import { rasterOf } from "../canvas/display";
 import { useStore, type VarEntry } from "../state/store";
-import { SOLARIZED } from "../theme/themes";
+import { VAR_COLORS } from "../theme/themes";
 import { Code, Section } from "../ui/bits";
 import GeometryInspector from "./inspectors/GeometryInspector";
 import { CrsInspector, TransformerInspector, TransformInspector } from "./inspectors/ProjInspector";
@@ -106,7 +106,7 @@ export default function Inspector() {
   return (
     <div data-testid="inspector" data-kind={p.kind}>
       <div className="sticky top-0 z-10 flex items-center gap-2 border-b border-rule bg-panel px-4 py-2.5">
-        <span className="h-2.5 w-2.5 rounded-full" style={{ background: SOLARIZED[entry.color] }} />
+        <span className="h-2.5 w-2.5 rounded-full" style={{ background: VAR_COLORS[entry.color] }} />
         <span className="font-mono text-sm font-medium text-emph">{entry.name}</span>
         <span className="ml-auto truncate font-sans text-xs text-pencil">{p.meta.title ?? p.meta.type}</span>
       </div>

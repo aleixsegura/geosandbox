@@ -1,5 +1,6 @@
 // Single source of truth for colors: CSS variables, deck.gl layers and Monaco
-// all read from here. Accents are the official Solarized palette.
+// all read from here. Variables use matplotlib's tab10; Solarized supplies the
+// UI accents and the editor's syntax colors.
 
 export type RGB = [number, number, number];
 
@@ -22,9 +23,22 @@ export const SOLARIZED = {
   green: "#859900",
 } as const;
 
-/** Variable colors, ordered for maximum contrast between neighbours. Red is reserved for errors. */
-export const ACCENTS = ["blue", "orange", "green", "magenta", "cyan", "violet", "yellow"] as const;
-export type AccentName = (typeof ACCENTS)[number];
+/**
+ * Variable colors: matplotlib's tab10 (Python's default plot cycle) minus red,
+ * which is reserved for errors, and grey, which reads as pencil.
+ */
+export const VAR_COLORS = {
+  blue: "#1f77b4",
+  orange: "#ff7f0e",
+  green: "#2ca02c",
+  purple: "#9467bd",
+  brown: "#8c564b",
+  pink: "#e377c2",
+  olive: "#bcbd22",
+  cyan: "#17becf",
+} as const;
+export type VarColor = keyof typeof VAR_COLORS;
+export const VAR_COLOR_NAMES = Object.keys(VAR_COLORS) as VarColor[];
 
 export interface Theme {
   paper: string; // app background
@@ -71,8 +85,8 @@ export function hexToRgb(hex: string): RGB {
   return [(n >> 16) & 255, (n >> 8) & 255, n & 255];
 }
 
-export function accentRgb(name: AccentName | "red"): RGB {
-  return hexToRgb(SOLARIZED[name]);
+export function varColorRgb(name: VarColor): RGB {
+  return hexToRgb(VAR_COLORS[name]);
 }
 
 /** Mix two colors; t=0 gives a, t=1 gives b. */
