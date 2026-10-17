@@ -2,7 +2,6 @@ import { useEffect, useState, type ReactNode } from "react";
 
 import { editorApi } from "../editor/Editor";
 import { useStore } from "../state/store";
-import { THEMES, type ThemeName } from "../theme/themes";
 import { HelpIcon, PlayAllIcon, PlayIcon, RestartIcon, SelectionIcon, StopIcon } from "../ui/icons";
 import { interrupt, restart } from "../ws/client";
 
@@ -31,8 +30,6 @@ const STATUS: Record<string, { label: string; dot: string }> = {
 };
 
 export default function TopBar() {
-  const theme = useStore((s) => s.theme);
-  const setTheme = useStore((s) => s.setTheme);
   const kernel = useStore((s) => s.kernel);
   const setHelpOpen = useStore((s) => s.setHelpOpen);
   const [snippets, setSnippets] = useState<{ name: string }[]>([]);
@@ -93,13 +90,6 @@ export default function TopBar() {
           <span className={`h-2 w-2 rounded-full ${status.dot}`} />
           {status.label}
         </span>
-        <select className="gs-select" value={theme} onChange={(e) => setTheme(e.target.value as ThemeName)} data-testid="theme" aria-label="Theme">
-          {Object.values(THEMES).map((t) => (
-            <option key={t.name} value={t.name}>
-              {t.label}
-            </option>
-          ))}
-        </select>
         <button type="button" title="Keyboard shortcuts (?)" onClick={() => setHelpOpen(true)} className="rounded p-1 text-pencil hover:bg-sunken hover:text-ink">
           <HelpIcon />
         </button>

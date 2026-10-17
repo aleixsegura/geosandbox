@@ -9,7 +9,6 @@ import ShortcutsOverlay from "./panels/ShortcutsOverlay";
 import TopBar from "./panels/TopBar";
 import VariableList from "./panels/VariableList";
 import { useStore } from "./state/store";
-import { applyTheme, THEMES } from "./theme/themes";
 
 function Handle({ direction }: { direction: "horizontal" | "vertical" }) {
   return <PanelResizeHandle className={`gs-handle gs-handle-${direction}`} />;
@@ -38,11 +37,9 @@ function useGlobalShortcuts() {
 }
 
 export default function App() {
-  const theme = useStore((s) => s.theme);
   const consoleOpen = useStore((s) => s.consoleOpen);
   const setConsoleOpen = useStore((s) => s.setConsoleOpen);
   const consolePanel = useRef<ImperativePanelHandle>(null);
-  useEffect(() => applyTheme(THEMES[theme]), [theme]);
   useEffect(() => {
     const panel = consolePanel.current;
     if (!panel) return;

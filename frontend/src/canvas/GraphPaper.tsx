@@ -1,6 +1,6 @@
 import { useEffect, useRef } from "react";
 
-import type { Theme } from "../theme/themes";
+import { THEME as theme } from "../theme/themes";
 
 export interface PaperView {
   target: [number, number];
@@ -12,7 +12,6 @@ interface Props {
   width: number;
   height: number;
   flipY: boolean;
-  theme: Theme;
 }
 
 /** 1-2-5 step ≥ minimum world size. */
@@ -38,7 +37,7 @@ function formatTick(v: number, step: number): string {
  * Graph paper behind the orthographic deck.gl view: a grid that adapts to
  * zoom and labelled X/Y axes. Drawn with Canvas 2D for crisp lines.
  */
-export default function GraphPaper({ view, width, height, flipY, theme }: Props) {
+export default function GraphPaper({ view, width, height, flipY }: Props) {
   const ref = useRef<HTMLCanvasElement>(null);
 
   useEffect(() => {
@@ -139,7 +138,7 @@ export default function GraphPaper({ view, width, height, flipY, theme }: Props)
     ctx.fillText("x", width - 8, height - 24);
     ctx.textAlign = "left";
     ctx.fillText(flipY ? "y ↓  (row)" : "y", 8, 14);
-  }, [view, width, height, flipY, theme]);
+  }, [view, width, height, flipY]);
 
   return <canvas ref={ref} className="absolute inset-0 h-full w-full" style={{ width, height }} />;
 }

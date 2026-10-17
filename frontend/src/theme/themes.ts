@@ -1,8 +1,7 @@
 // Single source of truth for colors: CSS variables, deck.gl layers and Monaco
-// all read from here. Accents are the official Solarized palette in every theme.
+// all read from here. Accents are the official Solarized palette.
 
 export type RGB = [number, number, number];
-export type ThemeName = "notebook" | "solarized-light" | "solarized-dark";
 
 export const SOLARIZED = {
   base03: "#002b36",
@@ -28,9 +27,6 @@ export const ACCENTS = ["blue", "orange", "green", "magenta", "cyan", "violet", 
 export type AccentName = (typeof ACCENTS)[number];
 
 export interface Theme {
-  name: ThemeName;
-  label: string;
-  dark: boolean;
   paper: string; // app background
   panel: string; // raised surfaces (sidebar, toolbar)
   sunken: string; // inputs, console
@@ -49,70 +45,24 @@ export interface Theme {
   warn: string;
 }
 
-export const THEMES: Record<ThemeName, Theme> = {
-  notebook: {
-    name: "notebook",
-    label: "Notebook",
-    dark: false,
-    paper: "#f2f0eb",
-    panel: "#f7f6f2",
-    sunken: "#ebe8e1",
-    ink: "#2b2b2b",
-    emph: "#1c1c1c",
-    pencil: "#6e6a64",
-    faint: "#a29d95",
-    rule: "#dcd7cd",
-    gridMinor: "#dfe5ec",
-    gridMajor: "#c3cfdc",
-    axis: "#8797aa",
-    margin: "#e3aaa5",
-    accent: SOLARIZED.blue,
-    danger: SOLARIZED.red,
-    ok: SOLARIZED.green,
-    warn: SOLARIZED.yellow,
-  },
-  "solarized-light": {
-    name: "solarized-light",
-    label: "Solarized light",
-    dark: false,
-    paper: SOLARIZED.base3,
-    panel: SOLARIZED.base3,
-    sunken: SOLARIZED.base2,
-    ink: SOLARIZED.base00,
-    emph: SOLARIZED.base01,
-    pencil: SOLARIZED.base1,
-    faint: SOLARIZED.base1,
-    rule: SOLARIZED.base2,
-    gridMinor: SOLARIZED.base2,
-    gridMajor: "#dcd5bf", // base2 blended 15% toward base1
-    axis: SOLARIZED.base1,
-    margin: SOLARIZED.red,
-    accent: SOLARIZED.blue,
-    danger: SOLARIZED.red,
-    ok: SOLARIZED.green,
-    warn: SOLARIZED.yellow,
-  },
-  "solarized-dark": {
-    name: "solarized-dark",
-    label: "Solarized dark",
-    dark: true,
-    paper: SOLARIZED.base03,
-    panel: SOLARIZED.base03,
-    sunken: SOLARIZED.base02,
-    ink: SOLARIZED.base0,
-    emph: SOLARIZED.base1,
-    pencil: SOLARIZED.base01,
-    faint: SOLARIZED.base01,
-    rule: SOLARIZED.base02,
-    gridMinor: "#04323d", // base03 blended toward base02
-    gridMajor: SOLARIZED.base02,
-    axis: SOLARIZED.base01,
-    margin: SOLARIZED.red,
-    accent: SOLARIZED.blue,
-    danger: SOLARIZED.red,
-    ok: SOLARIZED.green,
-    warn: SOLARIZED.yellow,
-  },
+/** The Notebook theme: warm paper, graphite ink, blue-grey ruling. */
+export const THEME: Theme = {
+  paper: "#f2f0eb",
+  panel: "#f7f6f2",
+  sunken: "#ebe8e1",
+  ink: "#2b2b2b",
+  emph: "#1c1c1c",
+  pencil: "#6e6a64",
+  faint: "#a29d95",
+  rule: "#dcd7cd",
+  gridMinor: "#dfe5ec",
+  gridMajor: "#c3cfdc",
+  axis: "#8797aa",
+  margin: "#e3aaa5",
+  accent: SOLARIZED.blue,
+  danger: SOLARIZED.red,
+  ok: SOLARIZED.green,
+  warn: SOLARIZED.yellow,
 };
 
 export function hexToRgb(hex: string): RGB {
@@ -134,12 +84,10 @@ const CSS_VARS: (keyof Theme)[] = [
   "paper", "panel", "sunken", "ink", "emph", "pencil", "faint", "rule", "accent", "danger", "ok", "warn",
 ];
 
-export function applyTheme(theme: Theme): void {
+export function applyTheme(): void {
   const root = document.documentElement;
-  root.dataset.theme = theme.name;
-  root.style.colorScheme = theme.dark ? "dark" : "light";
   for (const key of CSS_VARS) {
-    root.style.setProperty(`--${key}`, hexToRgb(theme[key] as string).join(" "));
+    root.style.setProperty(`--${key}`, hexToRgb(THEME[key]).join(" "));
   }
-  root.style.setProperty("--margin-line", theme.margin);
+  root.style.setProperty("--margin-line", THEME.margin);
 }

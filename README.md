@@ -27,4 +27,4 @@ The **Load snippet…** menu holds demo scripts from `snippets/`, one per librar
 7. `frontend/` uses Vite, React, TypeScript and Tailwind. Monaco is the editor, deck.gl the canvas, MapLibre the basemap (only when a CRS exists) and three.js the 3D relief view.
 8. Rasters are colored on the GPU: values and mask go into an `rg32float` texture and the colormap into a LUT. Colormap and stretch are uniforms, so changing them never re-runs code.
 9. When a variable changes, the store keeps its previous version as a dashed "ghost", and the new version fades and scales in over 260 ms.
-10. Every color comes from `frontend/src/theme/themes.ts` (Notebook, Solarized light and dark). Variables always use Solarized accents, with red reserved for errors.
+10. Every color comes from the Notebook theme in `frontend/src/theme/themes.ts`. Variables always use Solarized accents, with red reserved for errors.

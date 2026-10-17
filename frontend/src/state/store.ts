@@ -1,6 +1,6 @@
 import { create } from "zustand";
 
-import { ACCENTS, type AccentName, type ThemeName } from "../theme/themes";
+import { ACCENTS, type AccentName } from "../theme/themes";
 import { defaultColormap } from "../theme/colormaps";
 import type { Payload } from "../ws/protocol";
 
@@ -47,7 +47,6 @@ interface State {
   vars: Record<string, VarEntry>;
   order: string[];
   selected: { name: string; feature: number | null } | null;
-  theme: ThemeName;
   toggles: Toggles;
   canvasMode: CanvasMode;
   rasterStyles: Record<string, RasterStyle>;
@@ -66,7 +65,6 @@ interface State {
   clearGhosts: () => void;
   setVisible: (name: string, visible: boolean) => void;
   select: (name: string | null, feature?: number | null) => void;
-  setTheme: (t: ThemeName) => void;
   setToggle: (k: keyof Toggles, v: boolean) => void;
   setCanvasMode: (m: CanvasMode) => void;
   setRasterStyle: (name: string, patch: Partial<RasterStyle>) => void;
@@ -81,13 +79,7 @@ interface State {
 }
 
 const GHOST_KINDS = new Set(["geometry", "transform"]);
-const THEME_KEY = "geosandbox.theme";
 const TOGGLES_KEY = "geosandbox.toggles";
-
-function loadTheme(): ThemeName {
-  const t = localStorage.getItem(THEME_KEY);
-  return t === "solarized-light" || t === "solarized-dark" || t === "notebook" ? t : "notebook";
-}
 
 function loadToggles(): Toggles {
   const base = { ghosts: true, centroids: false, bboxes: false, vertexNumbers: false };
@@ -151,7 +143,6 @@ export const useStore = create<State>((set, get) => ({
   vars: {},
   order: [],
   selected: null,
-  theme: loadTheme(),
   toggles: loadToggles(),
   canvasMode: "auto",
   rasterStyles: {},
@@ -215,11 +206,6 @@ export const useStore = create<State>((set, get) => ({
     set((s) => (s.vars[name] ? { vars: { ...s.vars, [name]: { ...s.vars[name], visible } } } : {})),
 
   select: (name, feature = null) => set({ selected: name ? { name, feature } : null }),
-
-  setTheme: (theme) => {
-    localStorage.setItem(THEME_KEY, theme);
-    set({ theme });
-  },
 
   setToggle: (k, v) => {
     const toggles = { ...get().toggles, [k]: v };

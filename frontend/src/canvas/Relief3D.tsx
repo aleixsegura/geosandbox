@@ -7,7 +7,7 @@ import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 
 import { useStore, type VarEntry } from "../state/store";
 import { colormapLut } from "../theme/colormaps";
-import { THEMES } from "../theme/themes";
+import { THEME as theme } from "../theme/themes";
 import type { NDArray } from "../ws/protocol";
 import { rasterExtent, rasterOf } from "./display";
 import { sliceIndex, sliceTexels, stretchRange } from "./layers";
@@ -55,9 +55,7 @@ function buildSurface(values: NDArray, texels: Float32Array, meta: Record<string
 export default function Relief3D({ entry }: { entry: VarEntry }) {
   const host = useRef<HTMLDivElement>(null);
   const style = useStore((s) => s.rasterStyles[entry.name]);
-  const themeName = useStore((s) => s.theme);
   const setStyle = useStore((s) => s.setRasterStyle);
-  const theme = THEMES[themeName];
   const raster = rasterOf(entry.payload, style);
   const index = raster && style ? sliceIndex(raster.meta, style) : 0;
 
@@ -141,7 +139,7 @@ export default function Relief3D({ entry }: { entry: VarEntry }) {
     grid.position.z = -size * 0.002;
     t.scene.add(grid);
     t.grid = grid;
-  }, [surface, theme]);
+  }, [surface]);
 
   // Mesh geometry (rebuilt only when the data or slice changes).
   useEffect(() => {
@@ -206,7 +204,7 @@ export default function Relief3D({ entry }: { entry: VarEntry }) {
       colors[i * 3 + 2] = c.b;
     }
     t.mesh.geometry.attributes.color.needsUpdate = true;
-  }, [surface, style, raster, theme]);
+  }, [surface, style, raster]);
 
   if (!raster || !style) return null;
   return (

@@ -1,17 +1,19 @@
 import type * as Monaco from "monaco-editor/esm/vs/editor/editor.api";
 
-import { SOLARIZED, THEMES, type Theme } from "../theme/themes";
+import { SOLARIZED, THEME as t } from "../theme/themes";
 
 const strip = (hex: string) => hex.replace("#", "");
 
-function define(monaco: typeof Monaco, t: Theme): void {
+export const MONACO_THEME = "notebook";
+
+export function defineTheme(monaco: typeof Monaco): void {
   const s = SOLARIZED;
-  monaco.editor.defineTheme(t.name, {
-    base: t.dark ? "vs-dark" : "vs",
+  monaco.editor.defineTheme(MONACO_THEME, {
+    base: "vs",
     inherit: true,
     rules: [
       { token: "", foreground: strip(t.ink) },
-      { token: "comment", foreground: strip(t.dark ? s.base01 : t.name === "notebook" ? "#8c877f" : s.base1), fontStyle: "italic" },
+      { token: "comment", foreground: strip("#8c877f"), fontStyle: "italic" },
       { token: "keyword", foreground: strip(s.green) },
       { token: "string", foreground: strip(s.cyan) },
       { token: "string.escape", foreground: strip(s.orange) },
@@ -27,7 +29,7 @@ function define(monaco: typeof Monaco, t: Theme): void {
       "editorGutter.background": t.paper,
       "editorLineNumber.foreground": t.faint,
       "editorLineNumber.activeForeground": t.pencil,
-      "editor.lineHighlightBackground": t.dark ? "#073642aa" : "#0000000a",
+      "editor.lineHighlightBackground": "#0000000a",
       "editor.lineHighlightBorder": "#00000000",
       "editorCursor.foreground": t.emph,
       "editor.selectionBackground": `${t.accent}33`,
@@ -53,8 +55,4 @@ function define(monaco: typeof Monaco, t: Theme): void {
       "scrollbarSlider.activeBackground": `${t.pencil}77`,
     },
   });
-}
-
-export function defineThemes(monaco: typeof Monaco): void {
-  for (const t of Object.values(THEMES)) define(monaco, t);
 }

@@ -6,7 +6,7 @@ import { useStore } from "../state/store";
 import { complete, execute } from "../ws/client";
 import { cellAt, cellRanges, cellTitle } from "./cells";
 import { monaco } from "./monacoSetup";
-import { defineThemes } from "./themes";
+import { defineTheme, MONACO_THEME } from "./themes";
 
 type Editor = Monaco.editor.IStandaloneCodeEditor;
 
@@ -113,7 +113,6 @@ function registerCompletion(): void {
 }
 
 export default function Editor() {
-  const theme = useStore((s) => s.theme);
   const errorLine = useStore((s) => s.errorLine);
   const decorations = useRef<Monaco.editor.IEditorDecorationsCollection | null>(null);
   const errorDecorations = useRef<Monaco.editor.IEditorDecorationsCollection | null>(null);
@@ -234,8 +233,8 @@ export default function Editor() {
   return (
     <MonacoEditor
       language="python"
-      theme={theme}
-      beforeMount={defineThemes}
+      theme={MONACO_THEME}
+      beforeMount={defineTheme}
       onMount={onMount}
       options={{
         fontFamily: '"JetBrains Mono", ui-monospace, monospace',

@@ -8,7 +8,7 @@ import { Matrix4 } from "@math.gl/core";
 
 import type { RasterStyle, Toggles, VarEntry } from "../state/store";
 import { colormapLut } from "../theme/colormaps";
-import { accentRgb, hexToRgb, mix, type RGB, type Theme } from "../theme/themes";
+import { accentRgb, hexToRgb, mix, THEME, type RGB } from "../theme/themes";
 import type { NDArray, Payload } from "../ws/protocol";
 import { ColormapLayer } from "./ColormapLayer";
 import { displayOf, mercatorToLngLat, rasterOf, type Mode } from "./display";
@@ -19,7 +19,6 @@ export interface LayerContext {
   /** World/lng-lat → screen pixels, for label layout. */
   project?: (xy: [number, number]) => [number, number];
   flipY: boolean;
-  theme: Theme;
   toggles: Toggles;
   selected: { name: string; feature: number | null } | null;
   styles: Record<string, RasterStyle>;
@@ -137,7 +136,7 @@ function geometryLayers(
       new ScatterplotLayer({
         id: `${id}-vertices`,
         data: { length: g.vertices.length / 2, attributes: { getPosition: { value: g.vertices, size: 2 } } } as any,
-        getFillColor: rgba(mix(style.color, hexToRgb(ctx.theme.ink), 0.35), dense ? 120 : 230),
+        getFillColor: rgba(mix(style.color, hexToRgb(THEME.ink), 0.35), dense ? 120 : 230),
         getRadius: (isSelected ? 2.6 : 2) * (dense ? 0.6 : 1),
         radiusUnits: "pixels",
         ...common,
@@ -151,7 +150,7 @@ function geometryLayers(
         data: g.points,
         getPosition: (d: any) => d.position,
         getFillColor: (d: any) => colorFor(d.feature, Math.max(style.strokeAlpha * 0.85, 40)),
-        getLineColor: rgba(hexToRgb(ctx.theme.paper), style.vertices ? 255 : 0),
+        getLineColor: rgba(hexToRgb(THEME.paper), style.vertices ? 255 : 0),
         stroked: true,
         lineWidthUnits: "pixels",
         getLineWidth: 1.5,
@@ -189,9 +188,9 @@ function geometryLayers(
 function overlayLayers(id: string, p: Payload, color: RGB, ctx: LayerContext, t: number): Layer[] {
   const g = prepareGeometry(p);
   const coords = coordinateProps(ctx.mode);
-  const ink = hexToRgb(ctx.theme.ink);
-  const pencil = hexToRgb(ctx.theme.pencil);
-  const paper = hexToRgb(ctx.theme.paper);
+  const ink = hexToRgb(THEME.ink);
+  const pencil = hexToRgb(THEME.pencil);
+  const paper = hexToRgb(THEME.paper);
   const layers: Layer[] = [];
   const common = { ...coords, opacity: t, parameters: { depthTest: false } as any };
 
@@ -298,7 +297,7 @@ function labelSpec(entry: VarEntry, text: string, ctx: LayerContext, t: number, 
   if (!disp) return null;
   const [, minY, maxX, maxY] = disp.bounds;
   // Top-right corner of the variable's extent; in a y-down canvas "top" is minY.
-  const ink = hexToRgb(ctx.theme.ink);
+  const ink = hexToRgb(THEME.ink);
   return {
     position: [maxX, ctx.flipY ? minY : maxY],
     text,
@@ -347,7 +346,7 @@ function layoutLabels(labels: LabelSpec[], project?: (xy: [number, number]) => [
 }
 
 function labelLayer(labels: LabelSpec[], ctx: LayerContext): Layer {
-  const paper = hexToRgb(ctx.theme.paper);
+  const paper = hexToRgb(THEME.paper);
   return new TextLayer({
     id: "labels",
     data: labels,
@@ -446,7 +445,7 @@ function rasterLayer(id: string, entry: VarEntry, ctx: LayerContext, t: number):
 }
 
 // ---------------------------------------------------------------- transforms
-function transformLayers(id: string, entry: VarEntry, ctx: LayerContext, t: number, color: RGB, ghost: boolean): Layer[] {
+function transformLayers(id: string, entry: VarEntry, t: number, color: RGB, ghost: boolean): Layer[] {
   const p = entry.payload;
   if (!p.meta.placed || !p.data.src) return [];
   const src = p.data.src.data as Float32Array;
@@ -460,7 +459,7 @@ function transformLayers(id: string, entry: VarEntry, ctx: LayerContext, t: numb
     ok: flags[i] === 1,
   })).filter((d) => Number.isFinite(d.src[0]) && Number.isFinite(d.dst[0]));
   const coords = coordinateProps("map");
-  const paper = hexToRgb(ctx.theme.paper);
+  const paper = hexToRgb(THEME.paper);
   const a = ghost ? 0.35 : 1;
   const common = { ...coords, opacity: ghost ? 1 : t, parameters: { depthTest: false } as any };
   const layers: Layer[] = [
@@ -570,8 +569,8 @@ export function buildLayers(entries: VarEntry[], ctx: LayerContext): Layer[] {
         break;
       }
       case "transform": {
-        if (showGhost) middle.push(...transformLayers(`${id}-ghost`, { ...entry, payload: entry.ghost! }, ctx, 1, color, true));
-        above.push(...transformLayers(id, entry, ctx, t, color, false));
+        if (showGhost) middle.push(...transformLayers(`${id}-ghost`, { ...entry, payload: entry.ghost! }, 1, color, true));
+        above.push(...transformLayers(id, entry, t, color, false));
         break;
       }
       case "raster":

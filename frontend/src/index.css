@@ -82,10 +82,6 @@ body {
   opacity: 0.55;
   pointer-events: none;
 }
-[data-theme="solarized-light"] .gs-editor .monaco-editor .margin::after,
-[data-theme="solarized-dark"] .gs-editor .monaco-editor .margin::after {
-  opacity: 0.25;
-}
 
 .gs-cell-sep {
   border-top: 1px dashed rgb(var(--pencil) / 0.35);

@@ -12,11 +12,10 @@ import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 
 import App from "./App";
-import { useStore } from "./state/store";
-import { applyTheme, THEMES } from "./theme/themes";
+import { applyTheme } from "./theme/themes";
 import { connect } from "./ws/client";
 
-applyTheme(THEMES[useStore.getState().theme]);
+applyTheme();
 
 // deck.gl builds text atlases from loaded fonts: wait for the canvas fonts first.
 Promise.all([

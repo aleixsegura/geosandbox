@@ -6,7 +6,6 @@ import "maplibre-gl/dist/maplibre-gl.css";
 
 import { useStore, type VarEntry } from "../state/store";
 import { basemapStyle } from "../theme/basemap";
-import { THEMES } from "../theme/themes";
 import CanvasToolbar from "./CanvasToolbar";
 import { displayOf, resolveMode, unionBounds, type Bounds, type Mode } from "./display";
 import GraphPaper, { type PaperView } from "./GraphPaper";
@@ -64,13 +63,11 @@ function contains(outer: Bounds, inner: Bounds): boolean {
 export default function Canvas() {
   const vars = useStore((s) => s.vars);
   const order = useStore((s) => s.order);
-  const themeName = useStore((s) => s.theme);
   const toggles = useStore((s) => s.toggles);
   const selected = useStore((s) => s.selected);
   const styles = useStore((s) => s.rasterStyles);
   const canvasMode = useStore((s) => s.canvasMode);
   const fitRequest = useStore((s) => s.fitRequest);
-  const theme = THEMES[themeName];
 
   const entries = useMemo(() => order.map((n) => vars[n]).filter(Boolean) as VarEntry[], [order, vars]);
   const mode: Mode = resolveMode(canvasMode, entries, styles);
@@ -96,11 +93,11 @@ export default function Canvas() {
 
   useEffect(() => {
     let alive = true;
-    basemapStyle(theme).then((s) => alive && setMapStyle(s));
+    basemapStyle().then((s) => alive && setMapStyle(s));
     return () => {
       alive = false;
     };
-  }, [theme]);
+  }, []);
 
   // Drive the fade/scale-in while any variable is still transitioning.
   useEffect(() => {
@@ -178,8 +175,8 @@ export default function Canvas() {
   }, [mode, size.width, size.height, paperView, mapView, flipY]);
 
   const layers = useMemo(
-    () => buildLayers(entries, { mode, flipY, theme, toggles, selected, styles, now, project }),
-    [entries, mode, flipY, theme, toggles, selected, styles, now, project],
+    () => buildLayers(entries, { mode, flipY, toggles, selected, styles, now, project }),
+    [entries, mode, flipY, toggles, selected, styles, now, project],
   );
 
   const view = useMemo(
@@ -220,7 +217,7 @@ export default function Canvas() {
         </Suspense>
       ) : (
         <>
-          {mode === "paper" && <GraphPaper view={paperView} width={size.width} height={size.height} flipY={flipY} theme={theme} />}
+          {mode === "paper" && <GraphPaper view={paperView} width={size.width} height={size.height} flipY={flipY} />}
           <DeckGL
             views={view}
             viewState={viewState as any}

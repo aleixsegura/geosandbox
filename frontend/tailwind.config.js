@@ -1,5 +1,5 @@
 /** @type {import('tailwindcss').Config} */
-// Colors are CSS variables set from src/theme/themes.ts, so both themes share classes.
+// Colors are CSS variables set from src/theme/themes.ts, shared with deck.gl and Monaco.
 const v = (name) => `rgb(var(--${name}) / <alpha-value>)`;
 
 export default {

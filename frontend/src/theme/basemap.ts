@@ -1,13 +1,13 @@
-// OpenFreeMap "positron" vector style, re-inked toward the active theme:
+// OpenFreeMap "positron" vector style, re-inked toward the notebook theme:
 // every color is desaturated and its lightness re-mapped between the theme's
 // ink and paper, so the map reads like a pencil sketch on the same paper.
 
-import { hexToRgb, mix, type RGB, type Theme } from "./themes";
+import { hexToRgb, mix, THEME, type RGB } from "./themes";
 
 const STYLE_URL = "https://tiles.openfreemap.org/styles/positron";
 
 let raw: Promise<any | null> | null = null;
-const cache = new Map<string, any>();
+let inked: any | null = null;
 
 function fetchStyle(): Promise<any | null> {
   raw ??= fetch(STYLE_URL)
@@ -58,27 +58,26 @@ function luminance([r, g, b]: number[]): number {
   return (0.299 * r + 0.587 * g + 0.114 * b) / 255;
 }
 
-function reink(color: string, theme: Theme, water: boolean): string {
+function reink(color: string, water: boolean): string {
   const c = parseColor(color);
   if (!c) return color;
-  const ink = hexToRgb(theme.ink);
-  const paper = hexToRgb(theme.paper);
-  const tint = hexToRgb(theme.gridMajor); // the notebook's blue-grey, for water
-  // White → paper, black → ink: on a dark paper this inverts the map by itself.
-  let out = mix(ink, paper, Math.pow(luminance(c), theme.dark ? 0.6 : 0.8));
-  if (water) out = mix(out, tint, theme.dark ? 0.35 : 0.6);
+  const ink = hexToRgb(THEME.ink);
+  const paper = hexToRgb(THEME.paper);
+  const tint = hexToRgb(THEME.gridMajor); // the notebook's blue-grey, for water
+  // White → paper, black → ink.
+  let out = mix(ink, paper, Math.pow(luminance(c), 0.8));
+  if (water) out = mix(out, tint, 0.6);
   return `rgba(${out[0]}, ${out[1]}, ${out[2]}, ${c[3]})`;
 }
 
-function walk(value: any, theme: Theme, water: boolean): any {
-  if (typeof value === "string") return parseColor(value) ? reink(value, theme, water) : value;
-  if (Array.isArray(value)) return value.map((v) => walk(v, theme, water));
+function walk(value: any, water: boolean): any {
+  if (typeof value === "string") return parseColor(value) ? reink(value, water) : value;
+  if (Array.isArray(value)) return value.map((v) => walk(v, water));
   return value;
 }
 
-export async function basemapStyle(theme: Theme): Promise<any | null> {
-  const hit = cache.get(theme.name);
-  if (hit) return hit;
+export async function basemapStyle(): Promise<any | null> {
+  if (inked) return inked;
   const style = await fetchStyle();
   if (!style) return null;
   const copy = structuredClone(style);
@@ -87,10 +86,10 @@ export async function basemapStyle(theme: Theme): Promise<any | null> {
     // Water keeps a hint of the notebook's blue-grey ruling (labels excluded).
     const water = /water/.test(layer.id) && layer.type !== "symbol";
     for (const [key, value] of Object.entries(layer.paint)) {
-      if (key.endsWith("color")) layer.paint[key] = walk(value, theme, water);
+      if (key.endsWith("color")) layer.paint[key] = walk(value, water);
     }
-    if (layer.type === "symbol" && layer.paint["text-halo-color"]) layer.paint["text-halo-color"] = `${theme.paper}cc`;
+    if (layer.type === "symbol" && layer.paint["text-halo-color"]) layer.paint["text-halo-color"] = `${THEME.paper}cc`;
   }
-  cache.set(theme.name, copy);
+  inked = copy;
   return copy;
 }

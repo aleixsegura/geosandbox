@@ -18,14 +18,13 @@ function collectErrors(page: Page): string[] {
   return errors;
 }
 
-async function boot(page: Page, theme = "notebook"): Promise<void> {
-  await page.addInitScript((t) => {
+async function boot(page: Page): Promise<void> {
+  await page.addInitScript(() => {
     if (!sessionStorage.getItem("booted")) {
       localStorage.clear();
-      localStorage.setItem("geosandbox.theme", t);
       sessionStorage.setItem("booted", "1");
     }
-  }, theme);
+  });
   await page.goto("/");
   await page.waitForSelector(".monaco-editor");
   await expect(page.getByTestId("kernel-status")).toHaveAttribute("data-state", "idle");
@@ -58,24 +57,22 @@ async function runCellAt(page: Page, line: number): Promise<void> {
   await waitIdle(page);
 }
 
-for (const theme of ["notebook", "solarized-light"]) {
-  for (const s of SNIPPETS) {
-    test(`${s.name} renders every object (${theme})`, async ({ page }) => {
-      const errors = collectErrors(page);
-      await boot(page, theme);
-      await runSnippet(page, s.name);
-      for (const v of s.vars) await expect(page.getByTestId(`var-${v}`)).toBeVisible();
-      await expect(page.getByTestId("canvas")).toHaveAttribute("data-mode", s.mode);
-      if (s.select) {
-        await page.getByTestId(`var-${s.select}`).click();
-        await expect(page.getByTestId("inspector")).toBeVisible();
-      }
-      await page.waitForTimeout(s.mode === "map" ? 3000 : 1200); // tiles, transitions
-      await page.getByTestId("right-canvas").screenshot({ path: `${SHOTS}/${s.name}-${theme}.png` });
-      await page.screenshot({ path: `${SHOTS}/${s.name}-${theme}-full.png` });
-      expect(errors).toEqual([]);
-    });
-  }
+for (const s of SNIPPETS) {
+  test(`${s.name} renders every object`, async ({ page }) => {
+    const errors = collectErrors(page);
+    await boot(page);
+    await runSnippet(page, s.name);
+    for (const v of s.vars) await expect(page.getByTestId(`var-${v}`)).toBeVisible();
+    await expect(page.getByTestId("canvas")).toHaveAttribute("data-mode", s.mode);
+    if (s.select) {
+      await page.getByTestId(`var-${s.select}`).click();
+      await expect(page.getByTestId("inspector")).toBeVisible();
+    }
+    await page.waitForTimeout(s.mode === "map" ? 3000 : 1200); // tiles, transitions
+    await page.getByTestId("right-canvas").screenshot({ path: `${SHOTS}/${s.name}.png` });
+    await page.screenshot({ path: `${SHOTS}/${s.name}-full.png` });
+    expect(errors).toEqual([]);
+  });
 }
 
 test("a Python error marks the right line and the kernel survives", async ({ page }) => {
@@ -178,7 +175,7 @@ test("hovering a vertex shows its coordinates", async ({ page }) => {
   expect(found).toMatch(/x, y\s+10, 10/);
 });
 
-test("? opens the shortcuts overlay and the theme choice persists", async ({ page }) => {
+test("? opens the shortcuts overlay", async ({ page }) => {
   await boot(page);
   await page.getByTestId("var-list-empty").click();
   await page.keyboard.press("?");
@@ -187,7 +184,4 @@ test("? opens the shortcuts overlay and the theme choice persists", async ({ pag
   await page.screenshot({ path: `${SHOTS}/shortcuts.png` });
   await page.keyboard.press("Escape");
   await expect(page.getByTestId("shortcuts")).toBeHidden();
-  await page.getByTestId("theme").selectOption("solarized-dark");
-  await page.reload();
-  await expect(page.locator("html")).toHaveAttribute("data-theme", "solarized-dark");
 });
