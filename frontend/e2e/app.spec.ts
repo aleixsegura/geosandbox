@@ -18,6 +18,7 @@ const SNIPPETS: { name: string; vars: string[]; mode: "paper" | "map"; select?: 
     mode: "map",
     select: "near_river",
   },
+  { name: "zonal_stats", vars: ["dem", "municipalities", "elevation_stats", "plots"], mode: "map", select: "plots" },
 ];
 
 function collectErrors(page: Page): string[] {
@@ -195,6 +196,21 @@ test("DuckDB relations show their SQL and color by a query column", async ({ pag
   await page.waitForTimeout(600);
   await page.getByTestId("right-canvas").screenshot({ path: `${SHOTS}/duckdb-per-parcel.png` });
   await page.screenshot({ path: `${SHOTS}/duckdb-per-parcel-full.png` });
+  expect(errors).toEqual([]);
+});
+
+test("zonal statistics come back as a GeoDataFrame colored by their mean", async ({ page }) => {
+  const errors = collectErrors(page);
+  await boot(page);
+  await runSnippet(page, "zonal_stats");
+  await expect(page.getByTestId("console-body")).toContainText("pixel centres inside: 0");
+  await page.getByTestId("var-municipalities").locator("input").uncheck();
+  await page.getByTestId("var-elevation_stats").click();
+  await page.getByTestId("color-by").selectOption("mean");
+  await page.getByTestId("cmap-terrain").click();
+  await page.waitForTimeout(600);
+  await page.getByTestId("right-canvas").screenshot({ path: `${SHOTS}/zonal-mean.png` });
+  await page.screenshot({ path: `${SHOTS}/zonal-mean-full.png` });
   expect(errors).toEqual([]);
 });
 
