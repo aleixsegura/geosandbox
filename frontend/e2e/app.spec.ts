@@ -242,12 +242,12 @@ test("the 3D button is disabled without Z", async ({ page }) => {
 test("exercises from Claude open in the editor as cells", async ({ page }) => {
   // The Anthropic call is mocked at the app's API: tests never spend tokens.
   let sent: any = null;
-  await page.route("**/api/exercises/status", (r) => r.fulfill({ json: { configured: true, model: "claude-opus-5-5" } }));
+  await page.route("**/api/exercises/status", (r) => r.fulfill({ json: { configured: true, model: "claude-sonnet-5-5" } }));
   await page.route("**/api/exercises", async (r) => {
     sent = r.request().postDataJSON();
     await new Promise((res) => setTimeout(res, 400));
     await r.fulfill({
-      json: { count: 2, model: "claude-opus-5-5", title: "Shapely", code: "# Shapely\n\n# %% Ejercicio 1 · Buffer\n# Crea un buffer.\n\n# %% Ejercicio 2 · Unión\n# Une dos polígonos.\n" },
+      json: { count: 2, model: "claude-sonnet-5-5", title: "Shapely", code: "# Shapely\n\n# %% Ejercicio 1 · Buffer\n# Crea un buffer.\n\n# %% Ejercicio 2 · Unión\n# Une dos polígonos.\n" },
     });
   });
   await boot(page);
@@ -264,7 +264,7 @@ test("exercises from Claude open in the editor as cells", async ({ page }) => {
 });
 
 test("without an API key the dialog explains how to add one", async ({ page }) => {
-  await page.route("**/api/exercises/status", (r) => r.fulfill({ json: { configured: false, model: "claude-opus-5-5" } }));
+  await page.route("**/api/exercises/status", (r) => r.fulfill({ json: { configured: false, model: "claude-sonnet-5-5" } }));
   await boot(page);
   await page.getByTestId("exercises-open").click();
   await expect(page.getByTestId("ex-no-key")).toBeVisible();

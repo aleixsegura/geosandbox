@@ -7,6 +7,7 @@ root; it stays on the server and is never sent to the browser.
 
 from __future__ import annotations
 
+import json
 import os
 import re
 import textwrap
@@ -18,8 +19,12 @@ import httpx2
 from pydantic import BaseModel, Field
 
 ROOT = Path(__file__).resolve().parent.parent
-MODEL = os.environ.get("GEOSANDBOX_MODEL", "claude-opus-5-5")
-MAX_TOKENS = 8000
+# Sonnet is a fraction of Opus's price and plenty for writing exercise statements.
+MODEL = os.environ.get("GEOSANDBOX_MODEL", "claude-sonnet-5-5")
+MAX_TOKENS = 16000
+EFFORT = "medium"
+# Server-side retry on another model if a safety classifier declines the request.
+FALLBACK_BETA = "server-side-fallback-2026-07-01"
 
 LIBRARIES = {
     "shapely": "Shapely 2",
@@ -61,29 +66,28 @@ For each exercise:
 
 Make the set progressive and varied, with practical, real-world geospatial tasks rather than trivia."""
 
-TOOL = {
-    "name": "write_exercises",
-    "description": "Return the exercise set.",
-    "input_schema": {
-        "type": "object",
-        "properties": {
-            "title": {"type": "string", "description": "Title of the whole set."},
-            "exercises": {
-                "type": "array",
-                "items": {
-                    "type": "object",
-                    "properties": {
-                        "title": {"type": "string"},
-                        "statement": {"type": "string"},
-                        "hint": {"type": "string"},
-                        "starter_code": {"type": "string"},
-                    },
-                    "required": ["title", "statement", "starter_code"],
+# Structured output: the response text is guaranteed to be JSON matching this schema.
+SCHEMA = {
+    "type": "object",
+    "properties": {
+        "title": {"type": "string", "description": "Title of the whole set."},
+        "exercises": {
+            "type": "array",
+            "items": {
+                "type": "object",
+                "properties": {
+                    "title": {"type": "string"},
+                    "statement": {"type": "string"},
+                    "hint": {"type": "string"},
+                    "starter_code": {"type": "string"},
                 },
+                "required": ["title", "statement", "hint", "starter_code"],
+                "additionalProperties": False,
             },
         },
-        "required": ["title", "exercises"],
     },
+    "required": ["title", "exercises"],
+    "additionalProperties": False,
 }
 
 
@@ -114,12 +118,13 @@ def user_prompt(req: ExerciseRequest) -> str:
 async def call_claude(req: ExerciseRequest, key: str, http_client: httpx2.AsyncClient | None = None) -> dict[str, Any]:
     client = anthropic.AsyncAnthropic(api_key=key, max_retries=2, http_client=http_client)
     try:
-        message = await client.messages.create(
+        message = await client.beta.messages.create(
             model=MODEL,
             max_tokens=MAX_TOKENS,
             system=SYSTEM,
-            tools=[TOOL],
-            tool_choice={"type": "tool", "name": "write_exercises"},
+            output_config={"effort": EFFORT, "format": {"type": "json_schema", "schema": SCHEMA}},
+            fallbacks="default",
+            betas=[FALLBACK_BETA],
             messages=[{"role": "user", "content": user_prompt(req)}],
         )
     except anthropic.AuthenticationError as exc:
@@ -130,10 +135,15 @@ async def call_claude(req: ExerciseRequest, key: str, http_client: httpx2.AsyncC
         raise ExerciseError(502, f"Anthropic API error {exc.status_code}: {exc.message}") from exc
     except anthropic.APIConnectionError as exc:
         raise ExerciseError(502, "Could not reach the Anthropic API.") from exc
-    for block in message.content:
-        if block.type == "tool_use" and block.name == "write_exercises":
-            return dict(block.input)
-    raise ExerciseError(502, "Claude returned no exercises.")
+    if message.stop_reason == "refusal":
+        raise ExerciseError(422, "Claude declined this request; try rewording the topic.")
+    if message.stop_reason == "max_tokens":
+        raise ExerciseError(502, "The answer was cut off; ask for fewer exercises.")
+    text = next((b.text for b in message.content if b.type == "text"), "")
+    try:
+        return json.loads(text)
+    except json.JSONDecodeError as exc:
+        raise ExerciseError(502, "Claude returned no exercises.") from exc
 
 
 _CELL = re.compile(r"^\s*#\s*%%")

@@ -26,7 +26,7 @@ The backend reads the key from `ANTHROPIC_API_KEY`, or from a `.env` file at the
 echo 'ANTHROPIC_API_KEY=sk-ant-...' > .env   # then restart pixi run dev
 ```
 
-The key stays on the server. The model defaults to `claude-opus-5-5`; set `GEOSANDBOX_MODEL` to use another one.
+The key stays on the server. The model defaults to `claude-sonnet-5-5` (about half the price of Opus; a 5-exercise set costs a few cents); set `GEOSANDBOX_MODEL` to use another one, e.g. `claude-opus-5-5` or the cheaper `claude-haiku-5-5`.
 
 ## Architecture in ten lines
 
