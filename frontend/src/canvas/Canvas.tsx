@@ -82,6 +82,7 @@ export default function Canvas() {
   const [mapView, setMapView] = useState<MapViewState>({ longitude: 0.62, latitude: 41.61, zoom: 9, pitch: 0, bearing: 0 });
   const [now, setNow] = useState(() => performance.now());
   const [hover, setHover] = useState<HoverInfo | null>(null);
+  const [hovered, setHovered] = useState<string | null>(null);
   const [mapStyle, setMapStyle] = useState<any | null>(null);
   const seen = useRef<Map<string, number>>(new Map());
 
@@ -166,19 +167,19 @@ export default function Canvas() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [visible.map((e) => `${e.name}:${e.updatedAt}`).join("|")]);
 
-  const project = useMemo(() => {
+  const { project, unproject } = useMemo(() => {
     const viewport =
       mode === "paper"
         ? new OrthographicViewport({ width: size.width, height: size.height, target: [...paperView.target, 0], zoom: paperView.zoom, flipY })
         : new WebMercatorViewport({ ...mapView, width: size.width, height: size.height });
     const fn = (xy: [number, number]) => viewport.project(xy) as [number, number];
     (window as any).__gsProject = fn; // end-to-end tests aim the mouse with it
-    return fn;
+    return { project: fn, unproject: (xy: [number, number]) => viewport.unproject(xy) as [number, number] };
   }, [mode, size.width, size.height, paperView, mapView, flipY]);
 
   const layers = useMemo(
-    () => buildLayers(entries, { mode, flipY, toggles, selected, styles, now, project }),
-    [entries, mode, flipY, toggles, selected, styles, now, project],
+    () => buildLayers(entries, { mode, flipY, toggles, selected, hovered, styles, now, project, unproject }),
+    [entries, mode, flipY, toggles, selected, hovered, styles, now, project, unproject],
   );
 
   const view = useMemo(
@@ -196,6 +197,8 @@ export default function Canvas() {
 
   const onHover = (info: PickingInfo) => {
     setHover(info.layer ? describeHover(info, vars, styles, mode) : null);
+    const name = info.layer ? (parseLayerId(info.layer.id)?.name ?? null) : null;
+    if (name !== hovered) setHovered(name);
   };
 
   const onClick = (info: PickingInfo) => {

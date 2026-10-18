@@ -25,6 +25,10 @@ export interface ArrowDatum {
   position: [number, number];
   angle: number;
   feature: number;
+  /** World length of the segment the arrow sits on. */
+  length: number;
+  /** One arrow per line is kept whatever the zoom, so direction never disappears. */
+  keep: boolean;
 }
 
 export interface VertexLabel {
@@ -42,6 +46,8 @@ export interface PreparedGeometry {
   centroids: PointDatum[];
   bboxes: PathDatum[];
   origin: [number, number];
+  /** Median world length of line and ring segments (0 without any). */
+  segment: number;
 }
 
 const MAX_ARROWS = 4000;
@@ -99,6 +105,7 @@ export function prepareGeometry(p: Payload): PreparedGeometry {
     const a = lineOffsets[i];
     const b = lineOffsets[i + 1];
     paths.push({ path: lines.subarray(a * 2, b * 2), feature: lineFeature[i], ring: false });
+    const first = arrows.length;
     for (let v = a; v + 1 < b && arrows.length < MAX_ARROWS; v++) {
       const x0 = lines[v * 2], y0 = lines[v * 2 + 1], x1 = lines[v * 2 + 2], y1 = lines[v * 2 + 3];
       if (x0 === x1 && y0 === y1) continue;
@@ -106,8 +113,11 @@ export function prepareGeometry(p: Payload): PreparedGeometry {
         position: [(x0 + x1) / 2, (y0 + y1) / 2],
         angle: (Math.atan2(y1 - y0, x1 - x0) * 180) / Math.PI,
         feature: lineFeature[i],
+        length: Math.hypot(x1 - x0, y1 - y0),
+        keep: false,
       });
     }
+    if (arrows.length > first) arrows[(first + arrows.length - 1) >> 1].keep = true;
   }
 
   const pts = arr(d.points);
@@ -159,7 +169,65 @@ export function prepareGeometry(p: Payload): PreparedGeometry {
     centroids,
     bboxes,
     origin,
+    segment: medianSegment(paths),
   };
   cache.set(p.data, prepared);
   return prepared;
+}
+
+/** Median segment length, sampled so huge geometries stay cheap. */
+function medianSegment(paths: PathDatum[]): number {
+  const lengths: number[] = [];
+  let total = 0;
+  for (const p of paths) total += p.path.length / 2;
+  const stride = Math.max(1, Math.floor(total / 4000));
+  for (const { path } of paths) {
+    for (let v = 0; v + 3 < path.length; v += 2 * stride) {
+      const d = Math.hypot(path[v + 2] - path[v], path[v + 3] - path[v + 1]);
+      if (d > 0) lengths.push(d);
+    }
+  }
+  if (!lengths.length) return 0;
+  lengths.sort((a, b) => a - b);
+  return lengths[lengths.length >> 1];
+}
+
+const anchors = new WeakMap<object, Map<boolean, [number, number]>>();
+
+/**
+ * Where a geometry's name label is pinned: the vertex closest to the top-right
+ * of its extent (on screen), so the label touches the shape instead of
+ * floating at a bounding-box corner.
+ */
+export function labelAnchor(p: Payload, flipY: boolean): [number, number] | null {
+  let byFlip = anchors.get(p.data);
+  if (!byFlip) anchors.set(p.data, (byFlip = new Map()));
+  const hit = byFlip.get(flipY);
+  if (hit) return hit;
+  const g = prepareGeometry(p);
+  const xs: number[] = [];
+  const ys: number[] = [];
+  for (const pt of g.points) xs.push(pt.position[0]), ys.push(pt.position[1]);
+  const stride = Math.max(1, Math.floor(g.vertices.length / 2 / 20000));
+  for (let i = 0; i + 1 < g.vertices.length; i += 2 * stride) xs.push(g.vertices[i]), ys.push(g.vertices[i + 1]);
+  let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
+  for (let i = 0; i < xs.length; i++) {
+    if (!Number.isFinite(xs[i]) || !Number.isFinite(ys[i])) continue;
+    minX = Math.min(minX, xs[i]); maxX = Math.max(maxX, xs[i]);
+    minY = Math.min(minY, ys[i]); maxY = Math.max(maxY, ys[i]);
+  }
+  if (!Number.isFinite(minX)) return null;
+  const w = maxX - minX || 1;
+  const h = maxY - minY || 1;
+  let best: [number, number] = [maxX, flipY ? minY : maxY];
+  let score = -Infinity;
+  for (let i = 0; i < xs.length; i++) {
+    if (!Number.isFinite(xs[i]) || !Number.isFinite(ys[i])) continue;
+    const up = flipY ? (maxY - ys[i]) / h : (ys[i] - minY) / h;
+    // Favour the top a little: labels read best above a shape.
+    const s = (xs[i] - minX) / w + 1.15 * up;
+    if (s > score) (score = s), (best = [xs[i], ys[i]]);
+  }
+  byFlip.set(flipY, best);
+  return best;
 }

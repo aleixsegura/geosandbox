@@ -12,15 +12,18 @@ import { hexToRgb, mix, THEME, varColorRgb, type RGB } from "../theme/themes";
 import type { NDArray, Payload } from "../ws/protocol";
 import { ColormapLayer } from "./ColormapLayer";
 import { displayOf, mercatorToLngLat, rasterOf, type Mode } from "./display";
-import { prepareGeometry } from "./geometryData";
+import { labelAnchor, prepareGeometry } from "./geometryData";
 
 export interface LayerContext {
   mode: Mode;
-  /** World/lng-lat → screen pixels, for label layout. */
+  /** World/lng-lat → screen pixels, for label layout and density checks. */
   project?: (xy: [number, number]) => [number, number];
+  unproject?: (xy: [number, number]) => [number, number];
   flipY: boolean;
   toggles: Toggles;
   selected: { name: string; feature: number | null } | null;
+  /** Variable under the mouse: it shows its vertices even when they are dense. */
+  hovered: string | null;
   styles: Record<string, RasterStyle>;
   now: number;
 }
@@ -59,6 +62,25 @@ export function progress(entry: VarEntry, now: number): number {
 
 const rgba = (c: RGB, a: number): [number, number, number, number] => [c[0], c[1], c[2], Math.round(a)];
 
+/** When something is selected, everything else steps back to this opacity. */
+const DIMMED = 0.3;
+/** Vertex dots closer than this on screen read as beads: hide them. */
+const MIN_VERTEX_GAP = 7;
+/** Direction arrows need a segment at least this long on screen. */
+const MIN_ARROW_SEGMENT = 28;
+
+function dimFactor(name: string, ctx: LayerContext): number {
+  return ctx.selected && ctx.selected.name !== name ? DIMMED : 1;
+}
+
+/** Screen pixels per world unit around a point (Infinity when unknown). */
+function pixelsPerUnit(ctx: LayerContext, at: [number, number], unit: number): number {
+  if (!ctx.project || !(unit > 0)) return Infinity;
+  const a = ctx.project(at);
+  const b = ctx.project([at[0] + unit, at[1]]);
+  return Math.hypot(b[0] - a[0], b[1] - a[1]) / unit;
+}
+
 // ---------------------------------------------------------------- geometry-like kinds
 interface GeometryStyle {
   color: RGB;
@@ -82,13 +104,55 @@ function geometryLayers(
   const coords = coordinateProps(ctx.mode);
   const invalid = new Set<number>((p.meta.invalid ?? []).map((i: any) => i.feature));
   const modelMatrix = growMatrix(g.origin, t);
-  const common = { ...coords, modelMatrix, opacity: t, pickable, parameters: { depthTest: false } as any };
+  const common = { ...coords, modelMatrix, opacity: t * dimFactor(p.name, ctx), pickable, parameters: { depthTest: false } as any };
   const sel = ctx.selected;
   const isSelected = sel?.name === p.name;
+  const focused = isSelected || ctx.hovered === p.name;
+  const scale = pixelsPerUnit(ctx, g.origin, g.segment || 1);
+  const inFocus = (d: { feature: number }) => sel?.feature == null || sel.feature === d.feature;
   const colorFor = (feature: number, alpha: number) =>
     rgba(invalid.has(feature) ? RED : style.color, isSelected && sel?.feature === feature ? Math.min(255, alpha * 1.8) : alpha);
   const width = isSelected ? style.width * 1.6 : style.width;
   const layers: Layer[] = [];
+
+  // A soft halo under the selected variable (or just the clicked feature).
+  if (isSelected && pickable) {
+    const halo = rgba(style.color, 60);
+    const paths = g.paths.filter(inFocus);
+    const points = g.points.filter(inFocus);
+    if (paths.length) {
+      layers.push(
+        new PathLayer({
+          id: `${id}-halo`,
+          data: paths,
+          getPath: (d: any) => d.path,
+          positionFormat: "XY",
+          _pathType: "open",
+          getColor: halo,
+          getWidth: width + 7,
+          widthUnits: "pixels",
+          jointRounded: true,
+          capRounded: true,
+          ...common,
+          pickable: false,
+        } as any),
+      );
+    }
+    if (points.length) {
+      layers.push(
+        new ScatterplotLayer({
+          id: `${id}-halo-points`,
+          data: points,
+          getPosition: (d: any) => d.position,
+          getFillColor: halo,
+          getRadius: 11,
+          radiusUnits: "pixels",
+          ...common,
+          pickable: false,
+        }),
+      );
+    }
+  }
 
   if (style.fillAlpha > 0 && g.polygons.length) {
     layers.push(
@@ -129,9 +193,9 @@ function geometryLayers(
       } as any),
     );
   }
-  if (style.vertices && g.vertices.length) {
-    // Curves (e.g. buffers) have many vertices: draw them as fine stipple instead of beads.
-    const dense = g.vertices.length / 2 / Math.max(1, g.paths.length) > 24;
+  // Vertices closer than a few pixels (buffers, dense curves) only show on hover or selection.
+  const dense = g.segment * scale < MIN_VERTEX_GAP;
+  if (style.vertices && g.vertices.length && (!dense || focused)) {
     layers.push(
       new ScatterplotLayer({
         id: `${id}-vertices`,
@@ -161,11 +225,13 @@ function geometryLayers(
       }),
     );
   }
-  if (style.arrows && g.arrows.length) {
+  // Arrows only on segments long enough to carry one; every line keeps at least one.
+  const arrows = style.arrows ? g.arrows.filter((a) => a.keep || a.length * scale >= MIN_ARROW_SEGMENT) : [];
+  if (arrows.length) {
     layers.push(
       new IconLayer({
         id: `${id}-arrows`,
-        data: g.arrows,
+        data: arrows,
         iconAtlas: ARROW_ICON,
         iconMapping: ARROW_MAPPING,
         getIcon: () => "arrow",
@@ -192,7 +258,7 @@ function overlayLayers(id: string, p: Payload, color: RGB, ctx: LayerContext, t:
   const pencil = hexToRgb(THEME.pencil);
   const paper = hexToRgb(THEME.paper);
   const layers: Layer[] = [];
-  const common = { ...coords, opacity: t, parameters: { depthTest: false } as any };
+  const common = { ...coords, opacity: t * dimFactor(p.name, ctx), parameters: { depthTest: false } as any };
 
   // Problem locations of invalid geometries.
   const problems = (p.meta.invalid ?? [])
@@ -284,31 +350,47 @@ function overlayLayers(id: string, p: Payload, color: RGB, ctx: LayerContext, t:
   return layers;
 }
 
+type TextAnchor = "start" | "end";
+type Baseline = "bottom" | "top";
+
 interface LabelSpec {
+  /** World (or lng/lat) point the label belongs to. */
   position: [number, number];
   text: string;
   color: [number, number, number, number];
   offset: [number, number];
+  textAnchor: TextAnchor;
+  baseline: Baseline;
   size: number;
+  /** Keep the given offset: no candidate search. */
+  fixed?: boolean;
+  /** Pushed away from its point: draw a guide line back to it. */
+  leader?: boolean;
 }
+
+const LABEL_SIZE = 21;
 
 function labelSpec(entry: VarEntry, text: string, ctx: LayerContext, t: number, color: RGB): LabelSpec | null {
   const disp = displayOf(entry.payload, ctx.styles[entry.name]);
   if (!disp) return null;
   const [, minY, maxX, maxY] = disp.bounds;
-  // Top-right corner of the variable's extent; in a y-down canvas "top" is minY.
+  // Geometries pin the label on the shape itself; other kinds on their extent's
+  // top-right corner (in a y-down canvas "top" is minY).
+  const anchor = entry.payload.kind === "geometry" ? labelAnchor(entry.payload, ctx.flipY) : null;
   const ink = hexToRgb(THEME.ink);
   return {
-    position: [maxX, ctx.flipY ? minY : maxY],
+    position: anchor ?? [maxX, ctx.flipY ? minY : maxY],
     text,
-    color: rgba(mix(color, ink, 0.25), 255 * t),
-    offset: [6, -2],
+    color: rgba(mix(color, ink, 0.25), 255 * t * dimFactor(entry.name, ctx)),
+    offset: [7, -3],
+    textAnchor: "start",
+    baseline: "bottom",
     size: LABEL_SIZE,
   };
 }
 
 /** Handwritten notes next to the problem spots of invalid geometries. */
-function problemLabels(p: Payload, t: number): LabelSpec[] {
+function problemLabels(p: Payload, t: number, ctx: LayerContext): LabelSpec[] {
   const g = prepareGeometry(p);
   return (p.meta.invalid ?? [])
     .filter((i: any) => i.display)
@@ -316,57 +398,137 @@ function problemLabels(p: Payload, t: number): LabelSpec[] {
       // Label layer positions are absolute (paper) or lng/lat (map).
       position: [i.display[0] + g.origin[0], i.display[1] + g.origin[1]] as [number, number],
       text: String(i.reason).replace(/\[.*$/, "").toLowerCase(),
-      color: rgba(RED, 255 * t),
+      color: rgba(RED, 255 * t * dimFactor(p.name, ctx)),
       offset: [12, 28] as [number, number],
+      textAnchor: "start" as const,
+      baseline: "bottom" as const,
       size: 18,
+      fixed: true,
     }));
 }
 
-const LABEL_SIZE = 21;
+/** Up-right first, then the other three corners around the label's point. */
+const CANDIDATES: { offset: [number, number]; textAnchor: TextAnchor; baseline: Baseline }[] = [
+  { offset: [7, -3], textAnchor: "start", baseline: "bottom" },
+  { offset: [7, 3], textAnchor: "start", baseline: "top" },
+  { offset: [-7, -3], textAnchor: "end", baseline: "bottom" },
+  { offset: [-7, 3], textAnchor: "end", baseline: "top" },
+];
 
-/** Greedy de-overlap in screen space: nudge a label down until it no longer hits earlier ones. */
+type Rect = [number, number, number, number];
+
+let measureCtx: CanvasRenderingContext2D | null = null;
+const widths = new Map<string, number>();
+
+/** Rendered width of a Caveat label, measured once with a 2D canvas. */
+function textWidth(text: string, size: number): number {
+  const key = `${size}|${text}`;
+  const hit = widths.get(key);
+  if (hit !== undefined) return hit;
+  measureCtx ??= document.createElement("canvas").getContext("2d");
+  let w = text.length * size * 0.36;
+  if (measureCtx) {
+    measureCtx.font = `600 ${size}px Caveat`;
+    w = measureCtx.measureText(text).width;
+  }
+  // Fonts may still be loading: only cache real measurements.
+  if (document.fonts?.check?.(`600 ${size}px Caveat`)) widths.set(key, w);
+  return w;
+}
+
+function labelRect(x: number, y: number, l: LabelSpec): Rect {
+  const w = textWidth(l.text, l.size) + 6;
+  const left = l.textAnchor === "start" ? x + l.offset[0] : x + l.offset[0] - w;
+  const top = l.baseline === "bottom" ? y + l.offset[1] - l.size : y + l.offset[1];
+  return [left, top, left + w, top + l.size];
+}
+
+const overlaps = (r: Rect, placed: Rect[]) => placed.some((q) => r[0] < q[2] && r[2] > q[0] && r[1] < q[3] && r[3] > q[1]);
+
+/**
+ * Greedy placement in screen space: try the four corners around each label's
+ * point; if all collide, move it away and draw a guide line back.
+ */
 function layoutLabels(labels: LabelSpec[], project?: (xy: [number, number]) => [number, number]): void {
   if (!project) return;
-  const placed: [number, number, number, number][] = [];
+  const placed: Rect[] = [];
   for (const l of labels) {
     const [x, y] = project(l.position);
-    const w = l.text.length * l.size * 0.42 + 8;
-    const [ox, oy] = l.offset;
-    let dy = 0;
-    for (let attempt = 0; attempt < 8; attempt++) {
-      const r: [number, number, number, number] = [x + ox, y + oy + dy - l.size, x + ox + w, y + oy + dy];
-      if (!placed.some((q) => r[0] < q[2] && r[2] > q[0] && r[1] < q[3] && r[3] > q[1])) {
-        placed.push(r);
-        l.offset = [ox, oy + dy];
+    if (l.fixed) {
+      placed.push(labelRect(x, y, l));
+      continue;
+    }
+    const free = CANDIDATES.find((c) => !overlaps(labelRect(x, y, { ...l, ...c }), placed));
+    if (free) {
+      Object.assign(l, free);
+      placed.push(labelRect(x, y, l));
+      continue;
+    }
+    // Step away from the point, alternating up and down, so the guide line stays short.
+    Object.assign(l, CANDIDATES[0]);
+    for (let attempt = 1; attempt <= 10; attempt++) {
+      const step = Math.ceil(attempt / 2) * (attempt % 2 ? -1 : 1) * (l.size - 2);
+      const moved = { ...l, offset: [CANDIDATES[0].offset[0] + 10, CANDIDATES[0].offset[1] + step] as [number, number] };
+      if (!overlaps(labelRect(x, y, moved), placed) || attempt === 10) {
+        l.offset = moved.offset;
+        l.leader = true;
+        placed.push(labelRect(x, y, l));
         break;
       }
-      dy += l.size - 3;
     }
   }
 }
 
-function labelLayer(labels: LabelSpec[], ctx: LayerContext): Layer {
+function labelLayers(labels: LabelSpec[], ctx: LayerContext): Layer[] {
   const paper = hexToRgb(THEME.paper);
-  return new TextLayer({
-    id: "labels",
-    data: labels,
-    getPosition: (d: any) => d.position,
-    getText: (d: any) => d.text,
-    getColor: (d: any) => d.color,
-    getPixelOffset: (d: any) => d.offset,
-    fontFamily: "Caveat",
-    fontWeight: 600,
-    getSize: (d: any) => d.size,
-    getTextAnchor: "start",
-    getAlignmentBaseline: "bottom",
-    fontSettings: { sdf: true, fontSize: 72, buffer: 10 },
-    outlineWidth: 5,
-    outlineColor: rgba(paper, 235),
-    characterSet: "auto",
-    coordinateSystem: (ctx.mode === "map" ? COORDINATE_SYSTEM.LNGLAT : COORDINATE_SYSTEM.CARTESIAN) as any,
-    parameters: { depthTest: false } as any,
-    updateTriggers: { getColor: [labels.map((l) => l.color[3]).join()], getPixelOffset: [labels.map((l) => l.offset[1]).join()] },
-  });
+  const coordinateSystem = (ctx.mode === "map" ? COORDINATE_SYSTEM.LNGLAT : COORDINATE_SYSTEM.CARTESIAN) as any;
+  const leaders =
+    ctx.project && ctx.unproject
+      ? labels
+          .filter((l) => l.leader)
+          .map((l) => {
+            const [x, y] = ctx.project!(l.position);
+            return { from: l.position, to: ctx.unproject!([x + l.offset[0] - 2, y + l.offset[1] - l.size * 0.4]), color: l.color };
+          })
+      : [];
+  return [
+    new LineLayer({
+      id: "label-leaders",
+      data: leaders,
+      getSourcePosition: (d: any) => d.from,
+      getTargetPosition: (d: any) => d.to,
+      getColor: (d: any) => [d.color[0], d.color[1], d.color[2], d.color[3] * 0.55],
+      getWidth: 1,
+      widthUnits: "pixels",
+      coordinateSystem,
+      parameters: { depthTest: false } as any,
+    }),
+    new TextLayer({
+      id: "labels",
+      data: labels,
+      getPosition: (d: any) => d.position,
+      getText: (d: any) => d.text,
+      getColor: (d: any) => d.color,
+      getPixelOffset: (d: any) => d.offset,
+      fontFamily: "Caveat",
+      fontWeight: 600,
+      getSize: (d: any) => d.size,
+      getTextAnchor: (d: any) => d.textAnchor,
+      getAlignmentBaseline: (d: any) => d.baseline,
+      fontSettings: { sdf: true, fontSize: 72, buffer: 10 },
+      outlineWidth: 5,
+      outlineColor: rgba(paper, 235),
+      characterSet: "auto",
+      coordinateSystem,
+      parameters: { depthTest: false } as any,
+      updateTriggers: {
+        getColor: [labels.map((l) => l.color[3]).join()],
+        getPixelOffset: [labels.map((l) => l.offset.join()).join()],
+        getTextAnchor: [labels.map((l) => l.textAnchor).join()],
+        getAlignmentBaseline: [labels.map((l) => l.baseline).join()],
+      },
+    }),
+  ];
 }
 
 // ---------------------------------------------------------------- rasters
@@ -445,7 +607,7 @@ function rasterLayer(id: string, entry: VarEntry, ctx: LayerContext, t: number):
 }
 
 // ---------------------------------------------------------------- transforms
-function transformLayers(id: string, entry: VarEntry, t: number, color: RGB, ghost: boolean): Layer[] {
+function transformLayers(id: string, entry: VarEntry, t: number, color: RGB, ghost: boolean, dim: number): Layer[] {
   const p = entry.payload;
   if (!p.meta.placed || !p.data.src) return [];
   const src = p.data.src.data as Float32Array;
@@ -461,7 +623,7 @@ function transformLayers(id: string, entry: VarEntry, t: number, color: RGB, gho
   const coords = coordinateProps("map");
   const paper = hexToRgb(THEME.paper);
   const a = ghost ? 0.35 : 1;
-  const common = { ...coords, opacity: ghost ? 1 : t, parameters: { depthTest: false } as any };
+  const common = { ...coords, opacity: (ghost ? 1 : t) * dim, parameters: { depthTest: false } as any };
   const layers: Layer[] = [
     new LineLayer({
       id: `${id}-links`,
@@ -547,7 +709,7 @@ export function buildLayers(entries: VarEntry[], ctx: LayerContext): Layer[] {
           ),
         );
         top.push(...overlayLayers(id, p, color, ctx, t));
-        labels.push(...problemLabels(p, t));
+        labels.push(...problemLabels(p, t, ctx));
         const label = labelSpec(entry, entry.name, ctx, t, color);
         if (label) labels.push(label);
         break;
@@ -569,8 +731,9 @@ export function buildLayers(entries: VarEntry[], ctx: LayerContext): Layer[] {
         break;
       }
       case "transform": {
-        if (showGhost) middle.push(...transformLayers(`${id}-ghost`, { ...entry, payload: entry.ghost! }, 1, color, true));
-        above.push(...transformLayers(id, entry, t, color, false));
+        const dim = dimFactor(entry.name, ctx);
+        if (showGhost) middle.push(...transformLayers(`${id}-ghost`, { ...entry, payload: entry.ghost! }, 1, color, true, dim));
+        above.push(...transformLayers(id, entry, t, color, false, dim));
         break;
       }
       case "raster":
@@ -584,7 +747,7 @@ export function buildLayers(entries: VarEntry[], ctx: LayerContext): Layer[] {
     }
   }
   layoutLabels(labels, ctx.project);
-  return [...below, ...middle, ...above, ...top, labelLayer(labels, ctx)];
+  return [...below, ...middle, ...above, ...top, ...labelLayers(labels, ctx)];
 }
 
 // Layer ids are `v:<name>␟<role>`; ␟ cannot clash with real variable names in practice.

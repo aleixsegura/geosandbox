@@ -66,12 +66,15 @@ for (const s of SNIPPETS) {
     await runSnippet(page, s.name);
     for (const v of s.vars) await expect(page.getByTestId(`var-${v}`)).toBeVisible();
     await expect(page.getByTestId("canvas")).toHaveAttribute("data-mode", s.mode);
-    if (s.select) {
-      await page.getByTestId(`var-${s.select}`).click();
-      await expect(page.getByTestId("inspector")).toBeVisible();
-    }
     await page.waitForTimeout(s.mode === "map" ? 3000 : 1200); // tiles, transitions
     await page.getByTestId("right-canvas").screenshot({ path: `${SHOTS}/${s.name}.png` });
+    if (s.select) {
+      // Selecting one variable gives it a halo and dims the others.
+      await page.getByTestId(`var-${s.select}`).click();
+      await expect(page.getByTestId("inspector")).toBeVisible();
+      await page.waitForTimeout(400);
+      await page.getByTestId("right-canvas").screenshot({ path: `${SHOTS}/${s.name}-selected.png` });
+    }
     await page.screenshot({ path: `${SHOTS}/${s.name}-full.png` });
     expect(errors).toEqual([]);
   });
