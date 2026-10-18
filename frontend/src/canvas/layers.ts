@@ -154,8 +154,9 @@ function geometryLayers(
   const plainRing = (d: PathDatum) => !!c && d.ring && !(isSelected && sel?.feature === d.feature);
   const paper = hexToRgb(THEME.paper);
 
-  // A soft halo under the selected variable (or just the clicked feature).
-  if (isSelected && pickable) {
+  // A soft halo under the selected variable (or just the clicked feature). A choropleth
+  // skips the whole-variable halo: around many small features it would hide the colors.
+  if (isSelected && pickable && !(c && sel?.feature == null)) {
     const halo = rgba(style.color, 60);
     const paths = g.paths.filter(inFocus);
     const points = g.points.filter(inFocus);
