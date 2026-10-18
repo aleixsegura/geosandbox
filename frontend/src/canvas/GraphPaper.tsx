@@ -61,33 +61,39 @@ export default function GraphPaper({ view, width, height, flipY }: Props) {
     const y1 = ty + height / 2 / scale;
 
     const major = niceStep(48 / scale);
+    // Every fifth line is ruled a little darker, like a squared notebook.
+    const bold = (v: number) => Math.abs(Math.round(v / major)) % 5 === 0;
 
-    ctx.beginPath();
-    ctx.strokeStyle = theme.gridMajor;
-    ctx.lineWidth = 1;
-    for (let x = Math.ceil(x0 / major) * major; x <= x1; x += major) {
-      const px = Math.round(sx(x)) + 0.5;
-      ctx.moveTo(px, 0);
-      ctx.lineTo(px, height);
+    for (const strong of [false, true]) {
+      ctx.beginPath();
+      ctx.strokeStyle = strong ? theme.gridMajor : theme.gridMinor;
+      ctx.lineWidth = 1;
+      for (let x = Math.ceil(x0 / major) * major; x <= x1; x += major) {
+        if (bold(x) !== strong) continue;
+        const px = Math.round(sx(x)) + 0.5;
+        ctx.moveTo(px, 0);
+        ctx.lineTo(px, height);
+      }
+      for (let y = Math.ceil(y0 / major) * major; y <= y1; y += major) {
+        if (bold(y) !== strong) continue;
+        const py = Math.round(sy(y)) + 0.5;
+        ctx.moveTo(0, py);
+        ctx.lineTo(width, py);
+      }
+      ctx.stroke();
     }
-    for (let y = Math.ceil(y0 / major) * major; y <= y1; y += major) {
-      const py = Math.round(sy(y)) + 0.5;
-      ctx.moveTo(0, py);
-      ctx.lineTo(width, py);
-    }
-    ctx.stroke();
 
     // Axes through the origin, when visible.
     ctx.beginPath();
     ctx.strokeStyle = theme.axis;
-    ctx.lineWidth = 1.25;
+    ctx.lineWidth = 1.5;
     if (x0 <= 0 && x1 >= 0) {
-      const px = Math.round(sx(0)) + 0.5;
+      const px = Math.round(sx(0));
       ctx.moveTo(px, 0);
       ctx.lineTo(px, height);
     }
     if (y0 <= 0 && y1 >= 0) {
-      const py = Math.round(sy(0)) + 0.5;
+      const py = Math.round(sy(0));
       ctx.moveTo(0, py);
       ctx.lineTo(width, py);
     }
