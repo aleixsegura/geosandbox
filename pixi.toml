@@ -26,6 +26,11 @@ pytest-asyncio = "*"
 httpx = "*"
 nodejs = "22.*"
 anthropic = ">=1.15.0,<2"
+pyarrow = "*"
+python-duckdb = "*"
+h3-py = "*"
+exactextract = "*"
+libgdal-arrow-parquet = "*"
 
 [tasks]
 dev = "python scripts/dev.py"
