@@ -1,5 +1,7 @@
 # GeoPandas — tables of geometries. With a CRS they go on the map;
 # click a feature to see its attributes in the inspector.
+# Numeric columns can color the features: select `areas` and pick
+# "Color by → population" in the inspector (no re-run needed).
 
 # %% A few towns of the Segrià (lon/lat)
 import geopandas as gpd

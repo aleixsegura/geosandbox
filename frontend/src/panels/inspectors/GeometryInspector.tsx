@@ -1,5 +1,55 @@
+import { choroplethRange } from "../../canvas/layers";
 import { useStore, type VarEntry } from "../../state/store";
-import { Badge, Code, CopyButton, num, Prop, Section } from "../../ui/bits";
+import { Badge, Code, CopyButton, num, Prop, Section, Segmented } from "../../ui/bits";
+import { Colorbar, ColormapGrid } from "./RasterInspector";
+
+/** Color the features by a numeric column; everything here runs on the GPU, never in Python. */
+function ColorBy({ entry }: { entry: VarEntry }) {
+  const style = useStore((s) => s.featureStyles[entry.name]);
+  const setStyle = useStore((s) => s.setFeatureStyle);
+  const numeric = (entry.payload.meta.numeric ?? []) as { name: string; dtype: string; missing: number }[];
+  if (!style || !numeric.length) return null;
+  const column = numeric.find((c) => c.name === style.column);
+  const range = choroplethRange(entry.payload.meta, style);
+  return (
+    <Section title="Color by">
+      <select
+        value={style.column ?? ""}
+        onChange={(e) => setStyle(entry.name, { column: e.target.value || null })}
+        className="gs-select mb-2 w-full"
+        data-testid="color-by"
+      >
+        <option value="">— single color —</option>
+        {numeric.map((c) => (
+          <option key={c.name} value={c.name}>
+            {c.name} ({c.dtype})
+          </option>
+        ))}
+      </select>
+      {column && range && (
+        <>
+          <ColormapGrid colormap={style.colormap} reverse={style.reverse} onChange={(patch) => setStyle(entry.name, patch)} />
+          <div className="mb-3 flex items-center gap-2">
+            <span className="font-sans text-xs text-pencil">stretch</span>
+            <Segmented
+              testId="color-stretch"
+              value={style.stretch}
+              onChange={(v) => setStyle(entry.name, { stretch: v })}
+              options={[
+                { value: "p2p98", label: "2–98 %" },
+                { value: "minmax", label: "min–max" },
+              ]}
+            />
+          </div>
+          <Colorbar style={style} range={range} />
+          {column.missing > 0 && (
+            <div className="mt-1.5 font-sans text-2xs text-faint">{column.missing} features without a value are drawn faded.</div>
+          )}
+        </>
+      )}
+    </Section>
+  );
+}
 
 function Bounds({ b }: { b: (number | null)[] }) {
   if (!b || b[0] == null) return <>—</>;
@@ -76,6 +126,7 @@ export default function GeometryInspector({ entry }: { entry: VarEntry }) {
           </div>
         </Section>
       )}
+      <ColorBy entry={entry} />
       {f ? (
         <Section title={many ? `Feature ${featureIndex}` : "Geometry"}>
           <FeatureDetails f={f} />

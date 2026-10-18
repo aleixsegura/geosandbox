@@ -27,3 +27,17 @@ def test_geoseries_without_crs_and_missing_geometry(rt):
     assert m["crs"] is None and m["count"] == 3
     assert out["data"]["point_feature"].tolist() == [0, 2]
     assert m["features"][1]["geom_type"] is None
+
+
+def test_numeric_columns_travel_as_float32_for_coloring(rt):
+    gdf = gpd.GeoDataFrame(
+        {"name": ["a", "b", "c"], "pop": [10, None, 30], "ok": [True, False, True], "share": [0.5, 0.25, np.inf]},
+        geometry=[Point(0, 0), Point(1, 1), Point(2, 2)],
+    )
+    out = rt(gdf, "t")
+    cols, stats = out["data"]["columns"], out["meta"]["numeric"]
+    assert set(cols) == {"pop", "share"}  # strings and booleans are not colorable
+    assert cols["pop"].dtype == np.float32 and np.isnan(cols["pop"][1])
+    assert np.isnan(cols["share"][2])  # infinities count as missing
+    pop = next(s for s in stats if s["name"] == "pop")
+    assert pop["min"] == 10 and pop["max"] == 30 and pop["missing"] == 1

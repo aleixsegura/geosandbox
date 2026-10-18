@@ -34,7 +34,15 @@ function Histogram({ hist, stats, range }: { hist: Float32Array; stats: any; ran
   );
 }
 
-function Colorbar({ style, range, units }: { style: RasterStyle; range: [number, number]; units?: string | null }) {
+export function Colorbar({
+  style,
+  range,
+  units,
+}: {
+  style: { colormap: string; reverse: boolean };
+  range: [number, number];
+  units?: string | null;
+}) {
   return (
     <div data-testid="colorbar">
       <div className="h-3 rounded-sm border border-rule" style={{ background: colormapCss(style.colormap, style.reverse) }} />
@@ -43,6 +51,42 @@ function Colorbar({ style, range, units }: { style: RasterStyle; range: [number,
         <span className="mx-auto text-faint">{units ?? ""}</span>
         <span>{num(range[1], 3)}</span>
       </div>
+    </div>
+  );
+}
+
+/** Colormap swatches plus a reverse toggle; shared by rasters and choropleths. */
+export function ColormapGrid({
+  colormap,
+  reverse,
+  onChange,
+}: {
+  colormap: string;
+  reverse: boolean;
+  onChange: (patch: { colormap?: string; reverse?: boolean }) => void;
+}) {
+  return (
+    <div className="mb-2 grid grid-cols-4 gap-1.5" data-testid="colormaps">
+      {COLORMAPS.map((c) => (
+        <button
+          key={c}
+          type="button"
+          title={c}
+          data-testid={`cmap-${c}`}
+          onClick={() => onChange({ colormap: c })}
+          className={`group rounded-sm border p-0.5 transition-colors ${colormap === c ? "border-accent" : "border-rule hover:border-pencil"}`}
+        >
+          <div className="h-2.5 rounded-[2px]" style={{ background: colormapCss(c, reverse) }} />
+          <div className={`mt-0.5 font-mono text-[0.6rem] leading-3 ${colormap === c ? "text-accent" : "text-pencil"}`}>{c}</div>
+        </button>
+      ))}
+      <button
+        type="button"
+        onClick={() => onChange({ reverse: !reverse })}
+        className={`rounded-sm border font-mono text-[0.6rem] transition-colors ${reverse ? "border-accent text-accent" : "border-rule text-pencil hover:border-pencil"}`}
+      >
+        reverse
+      </button>
     </div>
   );
 }
@@ -143,28 +187,7 @@ export function RasterControls({ name, raster }: { name: string; raster: Raster 
   return (
     <>
       <Section title="Display">
-        <div className="mb-2 grid grid-cols-4 gap-1.5" data-testid="colormaps">
-          {COLORMAPS.map((c) => (
-            <button
-              key={c}
-              type="button"
-              title={c}
-              data-testid={`cmap-${c}`}
-              onClick={() => setStyle(name, { colormap: c })}
-              className={`group rounded-sm border p-0.5 transition-colors ${style.colormap === c ? "border-accent" : "border-rule hover:border-pencil"}`}
-            >
-              <div className="h-2.5 rounded-[2px]" style={{ background: colormapCss(c, style.reverse) }} />
-              <div className={`mt-0.5 font-mono text-[0.6rem] leading-3 ${style.colormap === c ? "text-accent" : "text-pencil"}`}>{c}</div>
-            </button>
-          ))}
-          <button
-            type="button"
-            onClick={() => setStyle(name, { reverse: !style.reverse })}
-            className={`rounded-sm border font-mono text-[0.6rem] transition-colors ${style.reverse ? "border-accent text-accent" : "border-rule text-pencil hover:border-pencil"}`}
-          >
-            reverse
-          </button>
-        </div>
+        <ColormapGrid colormap={style.colormap} reverse={style.reverse} onChange={(patch) => setStyle(name, patch)} />
         <div className="mb-3 flex items-center gap-2">
           <span className="font-sans text-xs text-pencil">stretch</span>
           <Segmented

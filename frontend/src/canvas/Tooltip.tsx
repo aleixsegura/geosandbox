@@ -1,7 +1,7 @@
 import type { PickingInfo } from "@deck.gl/core";
 import proj4 from "proj4";
 
-import type { RasterStyle, VarEntry } from "../state/store";
+import type { FeatureStyle, RasterStyle, VarEntry } from "../state/store";
 import type { NDArray } from "../ws/protocol";
 import { rasterOf, type Mode } from "./display";
 import { prepareGeometry } from "./geometryData";
@@ -60,11 +60,20 @@ function pointRows(xy: [number, number], meta: Record<string, any>, mode: Mode):
   return rows;
 }
 
+/** The value a feature is colored by, when its collection is a choropleth. */
+function choroplethRow(p: VarEntry["payload"], feature: number, style?: FeatureStyle): [string, string][] {
+  const column = style?.column;
+  const values = column ? (p.data.columns?.[column]?.data as Float32Array | undefined) : undefined;
+  if (!column || !values) return [];
+  return [[column, Number.isFinite(values[feature]) ? fmt(values[feature]) : "missing"]];
+}
+
 export function describeHover(
   info: PickingInfo,
   vars: Record<string, VarEntry>,
   styles: Record<string, RasterStyle>,
   mode: Mode,
+  featureStyles: Record<string, FeatureStyle> = {},
 ): HoverInfo | null {
   const parsed = parseLayerId(info.layer!.id);
   if (!parsed) return null;
@@ -82,7 +91,8 @@ export function describeHover(
   if (role === "points" && info.object) {
     const o = info.object as any;
     const xy: [number, number] = [o.position[0], o.position[1]];
-    return { ...base, title: `${entry.name} · point`, rows: pointRows(xy, p.meta, mode) };
+    const title = `${entry.name}${p.meta.count > 1 ? ` [${o.feature}]` : ""} · point`;
+    return { ...base, title, rows: [...pointRows(xy, p.meta, mode), ...choroplethRow(p, o.feature, featureStyles[entry.name])] };
   }
   if (role === "problem" && info.object) {
     const o = info.object as any;
@@ -142,6 +152,7 @@ export function describeHover(
     const f = p.meta.features?.[o.feature];
     const rows: [string, string][] = [];
     if (info.coordinate) rows.push(...pointRows(info.coordinate as [number, number], p.meta, mode));
+    rows.push(...choroplethRow(p, o.feature, featureStyles[entry.name]));
     const title = `${entry.name}${p.meta.count > 1 ? ` [${o.feature}]` : ""} · ${f?.geom_type ?? p.kind}`;
     return { ...base, title, rows };
   }

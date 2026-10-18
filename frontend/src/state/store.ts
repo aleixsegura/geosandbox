@@ -27,6 +27,14 @@ export interface RasterStyle {
   datasetVar: string | null;
 }
 
+/** Choropleth of a geometry collection: features colored by one numeric column. */
+export interface FeatureStyle {
+  column: string | null;
+  colormap: string;
+  reverse: boolean;
+  stretch: "minmax" | "p2p98";
+}
+
 export interface ConsoleEntry {
   id: number;
   kind: "stdout" | "stderr" | "error" | "result" | "info" | "run";
@@ -50,6 +58,7 @@ interface State {
   toggles: Toggles;
   canvasMode: CanvasMode;
   rasterStyles: Record<string, RasterStyle>;
+  featureStyles: Record<string, FeatureStyle>;
   console: ConsoleEntry[];
   consoleOpen: boolean;
   kernel: KernelState;
@@ -73,6 +82,7 @@ interface State {
   setToggle: (k: keyof Toggles, v: boolean) => void;
   setCanvasMode: (m: CanvasMode) => void;
   setRasterStyle: (name: string, patch: Partial<RasterStyle>) => void;
+  setFeatureStyle: (name: string, patch: Partial<FeatureStyle>) => void;
   log: (kind: ConsoleEntry["kind"], text: string) => void;
   clearConsole: () => void;
   setConsoleOpen: (open: boolean) => void;
@@ -145,6 +155,14 @@ function initialStyle(name: string, p: Payload, prev?: RasterStyle): RasterStyle
   };
 }
 
+/** Keep the chosen column across re-runs while it still exists and is numeric. */
+function initialFeatureStyle(p: Payload, prev?: FeatureStyle): FeatureStyle | null {
+  const numeric = (p.meta.numeric ?? []) as { name: string }[];
+  if (p.kind !== "geometry" || !numeric.length) return null;
+  const column = prev?.column && numeric.some((c) => c.name === prev.column) ? prev.column : null;
+  return { colormap: "viridis", reverse: false, stretch: "p2p98", ...prev, column };
+}
+
 let consoleId = 0;
 
 export const useStore = create<State>((set, get) => ({
@@ -154,6 +172,7 @@ export const useStore = create<State>((set, get) => ({
   toggles: loadToggles(),
   canvasMode: "auto",
   rasterStyles: {},
+  featureStyles: {},
   console: [],
   consoleOpen: true,
   kernel: "connecting",
@@ -184,11 +203,13 @@ export const useStore = create<State>((set, get) => ({
         updatedAt: performance.now(),
       };
       const style = initialStyle(p.name, p, s.rasterStyles[p.name]);
+      const featureStyle = initialFeatureStyle(p, s.featureStyles[p.name]);
       return {
         vars: { ...s.vars, [p.name]: entry },
         order: prev ? s.order : [...s.order, p.name],
         colorOf: { ...s.colorOf, [p.name]: color },
         rasterStyles: style ? { ...s.rasterStyles, [p.name]: style } : s.rasterStyles,
+        featureStyles: featureStyle ? { ...s.featureStyles, [p.name]: featureStyle } : s.featureStyles,
       };
     }),
 
@@ -204,7 +225,7 @@ export const useStore = create<State>((set, get) => ({
     }),
 
   /** Empty the canvas and variable list; the kernel keeps its namespace. */
-  clearAll: () => set({ vars: {}, order: [], selected: null, rasterStyles: {} }),
+  clearAll: () => set({ vars: {}, order: [], selected: null, rasterStyles: {}, featureStyles: {} }),
 
   clearGhosts: () =>
     set((s) => {
@@ -237,6 +258,9 @@ export const useStore = create<State>((set, get) => ({
       }
       return { rasterStyles: { ...s.rasterStyles, [name]: next } };
     }),
+
+  setFeatureStyle: (name, patch) =>
+    set((s) => (s.featureStyles[name] ? { featureStyles: { ...s.featureStyles, [name]: { ...s.featureStyles[name], ...patch } } } : {})),
 
   log: (kind, text) =>
     set((s) => {

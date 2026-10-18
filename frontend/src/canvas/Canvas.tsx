@@ -67,6 +67,7 @@ export default function Canvas() {
   const toggles = useStore((s) => s.toggles);
   const selected = useStore((s) => s.selected);
   const styles = useStore((s) => s.rasterStyles);
+  const featureStyles = useStore((s) => s.featureStyles);
   const canvasMode = useStore((s) => s.canvasMode);
   const fitRequest = useStore((s) => s.fitRequest);
   const geometry3d = useStore((s) => s.geometry3d);
@@ -178,8 +179,8 @@ export default function Canvas() {
   }, [mode, size.width, size.height, paperView, mapView, flipY]);
 
   const layers = useMemo(
-    () => buildLayers(entries, { mode, flipY, toggles, selected, hovered, styles, now, project, unproject }),
-    [entries, mode, flipY, toggles, selected, hovered, styles, now, project, unproject],
+    () => buildLayers(entries, { mode, flipY, toggles, selected, hovered, styles, featureStyles, now, project, unproject }),
+    [entries, mode, flipY, toggles, selected, hovered, styles, featureStyles, now, project, unproject],
   );
 
   const view = useMemo(
@@ -196,7 +197,7 @@ export default function Canvas() {
       : mapView;
 
   const onHover = (info: PickingInfo) => {
-    setHover(info.layer ? describeHover(info, vars, styles, mode) : null);
+    setHover(info.layer ? describeHover(info, vars, styles, mode, featureStyles) : null);
     const name = info.layer ? (parseLayerId(info.layer.id)?.name ?? null) : null;
     if (name !== hovered) setHovered(name);
   };

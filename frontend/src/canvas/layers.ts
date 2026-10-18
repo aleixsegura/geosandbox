@@ -6,13 +6,14 @@ import { PathStyleExtension } from "@deck.gl/extensions";
 import { IconLayer, LineLayer, PathLayer, ScatterplotLayer, SolidPolygonLayer, TextLayer } from "@deck.gl/layers";
 import { Matrix4 } from "@math.gl/core";
 
-import type { RasterStyle, Toggles, VarEntry } from "../state/store";
+import type { FeatureStyle, RasterStyle, Toggles, VarEntry } from "../state/store";
 import { colormapLut } from "../theme/colormaps";
 import { hexToRgb, mix, THEME, varColorRgb, type RGB } from "../theme/themes";
 import type { NDArray, Payload } from "../ws/protocol";
+import { ChoroplethExtension, KEEP, MISSING } from "./ChoroplethExtension";
 import { ColormapLayer } from "./ColormapLayer";
 import { displayOf, mercatorToLngLat, rasterOf, type Mode } from "./display";
-import { labelAnchor, prepareGeometry } from "./geometryData";
+import { labelAnchor, prepareGeometry, type PathDatum } from "./geometryData";
 
 export interface LayerContext {
   mode: Mode;
@@ -25,11 +26,14 @@ export interface LayerContext {
   /** Variable under the mouse: it shows its vertices even when they are dense. */
   hovered: string | null;
   styles: Record<string, RasterStyle>;
+  featureStyles: Record<string, FeatureStyle>;
   now: number;
 }
 
 export const TRANSITION_MS = 260;
 const DASH = new PathStyleExtension({ dash: true });
+// Always attached: deck.gl does not initialize an extension added to an existing layer.
+const CHORO = new ChoroplethExtension();
 const RED = hexToRgb(THEME.danger);
 
 const ARROW_ICON =
@@ -82,6 +86,13 @@ function pixelsPerUnit(ctx: LayerContext, at: [number, number], unit: number): n
 }
 
 // ---------------------------------------------------------------- geometry-like kinds
+interface Choropleth {
+  column: string;
+  values: Float32Array;
+  lut: Uint8Array;
+  range: [number, number];
+}
+
 interface GeometryStyle {
   color: RGB;
   fillAlpha: number;
@@ -90,6 +101,22 @@ interface GeometryStyle {
   dashed: boolean;
   vertices: boolean;
   arrows: boolean;
+  choropleth?: Choropleth | null;
+}
+
+/** Stretch of the column a collection is colored by. */
+export function choroplethRange(meta: Record<string, any>, style: FeatureStyle): [number, number] | null {
+  const s = (meta.numeric ?? []).find((c: any) => c.name === style.column);
+  if (!s) return null;
+  return style.stretch === "minmax" ? [s.min, s.max] : [s.p2, s.p98];
+}
+
+function choroplethOf(p: Payload, style?: FeatureStyle): Choropleth | null {
+  if (!style?.column) return null;
+  const values = p.data.columns?.[style.column]?.data as Float32Array | undefined;
+  const range = choroplethRange(p.meta, style);
+  if (!values || !range) return null;
+  return { column: style.column, values, lut: colormapLut(style.colormap, style.reverse), range };
 }
 
 function geometryLayers(
@@ -114,6 +141,18 @@ function geometryLayers(
     rgba(invalid.has(feature) ? RED : style.color, isSelected && sel?.feature === feature ? Math.min(255, alpha * 1.8) : alpha);
   const width = isSelected ? style.width * 1.6 : style.width;
   const layers: Layer[] = [];
+  const c = style.choropleth;
+  const valueOf = (d: { feature: number }) =>
+    !c ? KEEP : Number.isFinite(c.values[d.feature]) ? c.values[d.feature] : MISSING;
+  const choro = {
+    extensions: [CHORO],
+    getColorValue: valueOf,
+    colorLut: c?.lut ?? colormapLut("viridis"),
+    colorRange: c?.range ?? [0, 1],
+  };
+  // Colored polygons keep a fine paper outline, so neighbours stay apart; the clicked one keeps its color.
+  const plainRing = (d: PathDatum) => !!c && d.ring && !(isSelected && sel?.feature === d.feature);
+  const paper = hexToRgb(THEME.paper);
 
   // A soft halo under the selected variable (or just the clicked feature).
   if (isSelected && pickable) {
@@ -161,14 +200,16 @@ function geometryLayers(
         data: g.polygons,
         getPolygon: (d: any) => d.polygon,
         positionFormat: "XY",
-        getFillColor: (d: any) => colorFor(d.feature, invalid.has(d.feature) ? 26 : style.fillAlpha),
-        updateTriggers: { getFillColor: [style.color, isSelected, sel?.feature, style.fillAlpha] },
+        getFillColor: (d: any) => colorFor(d.feature, invalid.has(d.feature) ? 26 : c ? 215 : style.fillAlpha),
+        updateTriggers: { getFillColor: [style.color, isSelected, sel?.feature, style.fillAlpha, !!c], getColorValue: [c?.column] },
         ...common,
-      }),
+        ...choro,
+      } as any),
     );
   }
   if (g.paths.length) {
     const anyDashed = style.dashed || invalid.size > 0;
+    const extensions = [...(anyDashed ? [DASH] : []), CHORO];
     layers.push(
       new PathLayer({
         id: `${id}-stroke`,
@@ -176,19 +217,26 @@ function geometryLayers(
         getPath: (d: any) => d.path,
         positionFormat: "XY",
         _pathType: "open",
-        getColor: (d: any) => colorFor(d.feature, style.strokeAlpha),
-        getWidth: width,
+        getColor: (d: any) => (plainRing(d) ? rgba(paper, 230) : colorFor(d.feature, style.strokeAlpha)),
+        getWidth: (d: any) => (plainRing(d) ? 0.8 : width),
         widthUnits: "pixels",
         jointRounded: true,
         capRounded: true,
+        ...choro,
+        getColorValue: (d: any) => (d.ring ? KEEP : valueOf(d)),
         ...(anyDashed
           ? {
-              extensions: [DASH],
               getDashArray: (d: any) => (style.dashed || invalid.has(d.feature) ? [5, 4] : [0, 0]),
               dashJustified: true,
             }
           : {}),
-        updateTriggers: { getColor: [style.color, isSelected, sel?.feature, style.strokeAlpha], getDashArray: [style.dashed] },
+        extensions,
+        updateTriggers: {
+          getColor: [style.color, isSelected, sel?.feature, style.strokeAlpha, !!c],
+          getWidth: [width, isSelected, sel?.feature, !!c],
+          getDashArray: [style.dashed],
+          getColorValue: [c?.column],
+        },
         ...common,
       } as any),
     );
@@ -220,9 +268,10 @@ function geometryLayers(
         getLineWidth: 1.5,
         getRadius: isSelected ? 5.5 : 4.5,
         radiusUnits: "pixels",
-        updateTriggers: { getFillColor: [style.color, isSelected, sel?.feature, style.strokeAlpha] },
+        updateTriggers: { getFillColor: [style.color, isSelected, sel?.feature, style.strokeAlpha], getColorValue: [c?.column] },
         ...common,
-      }),
+        ...choro,
+      } as any),
     );
   }
   // Arrows only on segments long enough to carry one; every line keeps at least one.
@@ -702,7 +751,16 @@ export function buildLayers(entries: VarEntry[], ctx: LayerContext): Layer[] {
           ...geometryLayers(
             id,
             p,
-            { color, fillAlpha: 46, strokeAlpha: 255, width: 1.6, dashed: false, vertices: true, arrows: true },
+            {
+              color,
+              fillAlpha: 46,
+              strokeAlpha: 255,
+              width: 1.6,
+              dashed: false,
+              vertices: true,
+              arrows: true,
+              choropleth: choroplethOf(p, ctx.featureStyles[entry.name]),
+            },
             ctx,
             t,
             true,

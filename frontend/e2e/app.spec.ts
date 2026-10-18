@@ -122,6 +122,30 @@ test("changing colormap and stretch never re-runs code", async ({ page }) => {
   expect(Buffer.compare(shotA, shotB)).not.toBe(0);
 });
 
+test("coloring features by a column never re-runs code", async ({ page }) => {
+  const errors = collectErrors(page);
+  await boot(page);
+  await runSnippet(page, "geopandas_towns");
+  await page.getByTestId("var-areas").click();
+  const canvas = page.getByTestId("right-canvas");
+  await page.waitForTimeout(800);
+  const plain = await canvas.screenshot();
+  const before = await page.evaluate(() => (window as any).__geosandbox.executes);
+  await page.getByTestId("color-by").selectOption("population");
+  await expect(page.getByTestId("colorbar")).toBeVisible();
+  await page.waitForTimeout(500);
+  const viridis = await canvas.screenshot({ path: `${SHOTS}/choropleth.png` });
+  await page.getByTestId("cmap-magma").click();
+  await page.getByTestId("color-stretch").getByText("min–max").click();
+  await page.waitForTimeout(500);
+  const magma = await canvas.screenshot({ path: `${SHOTS}/choropleth-magma.png` });
+  expect(await page.evaluate(() => (window as any).__geosandbox.executes)).toBe(before);
+  expect(Buffer.compare(plain, viridis)).not.toBe(0);
+  expect(Buffer.compare(viridis, magma)).not.toBe(0);
+  await page.screenshot({ path: `${SHOTS}/choropleth-full.png` });
+  expect(errors).toEqual([]);
+});
+
 test("re-running a buffer leaves a ghost of the previous version", async ({ page }) => {
   await boot(page);
   await runSnippet(page, "shapely_basics");
