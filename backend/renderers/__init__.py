@@ -3,7 +3,8 @@
 Renderers run inside the kernel. Each one takes ``(obj, name)`` and returns
 ``{kind, name, data, meta}``; numpy arrays inside ``data`` travel as binary
 buffers. A renderer may return ``None`` to decline (e.g. a list that does not
-hold geometries); lookup then continues along the MRO and ends at ``repr``.
+hold geometries); the next renderer registered for the same type is tried
+(a list of H3 cells), then lookup continues along the MRO and ends at ``repr``.
 
 Types are registered by fully qualified name so that heavy libraries (GDAL,
 rasterio, xarray…) are only imported once the user imports them.
@@ -21,7 +22,7 @@ from typing import Any, Callable
 Renderer = Callable[[Any, str], "dict[str, Any] | None"]
 Fingerprint = Callable[[Any], Any]
 
-REGISTRY: dict[str, Renderer] = {}
+REGISTRY: dict[str, list[Renderer]] = {}
 FINGERPRINTS: dict[str, Fingerprint] = {}
 SETUP_HOOKS: list[Callable[[Any], None]] = []
 
@@ -35,7 +36,7 @@ def register(*type_names: str, fingerprint: Fingerprint | None = None) -> Callab
 
     def decorator(fn: Renderer) -> Renderer:
         for type_name in type_names:
-            REGISTRY[type_name] = fn
+            REGISTRY.setdefault(type_name, []).append(fn)
             if fingerprint is not None:
                 FINGERPRINTS[type_name] = fingerprint
         return fn
@@ -59,12 +60,10 @@ def _mro_names(obj: Any) -> list[str]:
 
 def render(obj: Any, name: str) -> dict[str, Any]:
     for type_name in _mro_names(obj):
-        fn = REGISTRY.get(type_name)
-        if fn is None:
-            continue
-        out = fn(obj, name)
-        if out is not None:
-            return out
+        for fn in REGISTRY.get(type_name, ()):
+            out = fn(obj, name)
+            if out is not None:
+                return out
     return fallback.render_repr(obj, name)
 
 

@@ -30,6 +30,13 @@ def test_registry_walks_mro_and_declines():
         renderers.REGISTRY.pop(name)
 
 
+def test_long_lists_change_beyond_the_first_items():
+    items = [f"cell{i}" for i in range(40)]
+    before = renderers.fingerprint(items)
+    items[30] = "other"
+    assert renderers.fingerprint(items) != before
+
+
 def test_snapshot_detects_new_changed_and_removed():
     snap = Snapshot()
     items = [1, 2]

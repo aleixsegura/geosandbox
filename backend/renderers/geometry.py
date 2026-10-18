@@ -322,15 +322,15 @@ def _fingerprint_many(obj: Any) -> str:
     if len(seq) > 50_000:
         return f"{id(obj)}:{len(seq)}"
     if not seq or any(to_shapely(g) is None for g in seq[:1]):
-        from backend.renderers.fallback import fingerprint_repr
+        from backend.renderers.fallback import fingerprint_collection
 
-        return fingerprint_repr(obj)
+        return fingerprint_collection(obj)
     try:
         return _wkb_hash(seq)
     except Exception:
-        from backend.renderers.fallback import fingerprint_repr
+        from backend.renderers.fallback import fingerprint_collection
 
-        return fingerprint_repr(obj)
+        return fingerprint_collection(obj)
 
 
 @register("shapely.geometry.base.BaseGeometry", fingerprint=_fingerprint_one)

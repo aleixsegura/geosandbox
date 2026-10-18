@@ -35,13 +35,14 @@ LIBRARIES = {
     "geopandas": "GeoPandas",
     "duckdb": "DuckDB with the spatial extension (SQL: ST_* functions, spatial joins, GeoParquet), from Python",
     "zonal": "zonal statistics with exactextract (exact_extract over rasterio datasets and GeoDataFrames)",
+    "h3": "the H3 hexagonal grid (h3-py v4: latlng_to_cell, grid_disk, cell_to_parent, h3shape_to_cells, compact_cells)",
     "formats": "geospatial file formats: GeoTIFF vs Cloud Optimized GeoTIFF, GeoParquet, GeoJSON, KML, GeoPackage, FlatGeobuf, Shapefile",
 }
 LANGUAGES = {"es": "Spanish", "en": "English"}
 
 
 class ExerciseRequest(BaseModel):
-    library: Literal["shapely", "gdal", "pyproj", "rasterio", "xarray", "geopandas", "duckdb", "zonal", "formats"]
+    library: Literal["shapely", "gdal", "pyproj", "rasterio", "xarray", "geopandas", "duckdb", "zonal", "h3", "formats"]
     count: int = Field(5, ge=1, le=10)
     level: Literal["beginner", "intermediate", "advanced"] = "beginner"
     language: Literal["es", "en"] = "es"
@@ -57,9 +58,9 @@ class ExerciseError(Exception):
 
 SYSTEM = """You write programming exercises for geo-sandbox, a local notebook for learning Python geospatial libraries.
 
-The learner writes Python in an editor split into `# %%` cells, run in a persistent IPython kernel. After each cell every top-level variable is drawn automatically: Shapely geometries on Cartesian graph paper (no CRS); anything with a CRS (GeoPandas, OGR, rasterio, xarray with rioxarray) on a web map; rasters and DataArrays with a colormap (N-D cubes get a time slider); pyproj CRS and Transformer objects as cards; Transformer.transform calls as points; a DuckDB relation (con.sql(...)) with a GEOMETRY column is drawn like a GeoDataFrame, on the map only if the column type has a CRS (ST_SetCRS(geom, 'EPSG:…')), and one without geometry shows its rows; a pathlib.Path to a file is drawn with its contents plus its structure (driver, layers, schema, Parquet row groups and GeoParquet metadata, block size, overviews, COG validity). Geometries with Z can be viewed in 3D. Names starting with `_` are not drawn, and `show(obj, label=None)` draws any intermediate object.
+The learner writes Python in an editor split into `# %%` cells, run in a persistent IPython kernel. After each cell every top-level variable is drawn automatically: Shapely geometries on Cartesian graph paper (no CRS); anything with a CRS (GeoPandas, OGR, rasterio, xarray with rioxarray) on a web map; rasters and DataArrays with a colormap (N-D cubes get a time slider); pyproj CRS and Transformer objects as cards; Transformer.transform calls as points; a DuckDB relation (con.sql(...)) with a GEOMETRY column is drawn like a GeoDataFrame, on the map only if the column type has a CRS (ST_SetCRS(geom, 'EPSG:…')), and one without geometry shows its rows; once h3 is imported, an H3 cell id string or a list/set of them is drawn as hexagons (with resolution and area_km2 attributes); a pathlib.Path to a file is drawn with its contents plus its structure (driver, layers, schema, Parquet row groups and GeoParquet metadata, block size, overviews, COG validity). Geometries with Z can be viewed in 3D. Names starting with `_` are not drawn, and `show(obj, label=None)` draws any intermediate object.
 
-Available: Python 3.12, numpy, shapely 2, GDAL/OGR (from osgeo import gdal, ogr, osr), pyproj, rasterio, xarray, rioxarray, geopandas, pyarrow, exactextract, duckdb (its spatial extension is installed: con.install_extension("spatial"); con.load_extension("spatial")). There is no internet and there are no data files: every exercise builds its own data in code (coordinates, numpy arrays, rasterio MemoryFile, the GDAL MEM driver or /vsimem/, GeoDataFrames from lists). Exercises that need real files write them to a tempfile.mkdtemp() folder.
+Available: Python 3.12, numpy, shapely 2, GDAL/OGR (from osgeo import gdal, ogr, osr), pyproj, rasterio, xarray, rioxarray, geopandas, pyarrow, exactextract, h3 (v4), duckdb (its spatial extension is installed: con.install_extension("spatial"); con.load_extension("spatial")). There is no internet and there are no data files: every exercise builds its own data in code (coordinates, numpy arrays, rasterio MemoryFile, the GDAL MEM driver or /vsimem/, GeoDataFrames from lists). Exercises that need real files write them to a tempfile.mkdtemp() folder.
 
 For each exercise:
 - title: a few words.

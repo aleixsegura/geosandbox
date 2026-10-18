@@ -39,3 +39,17 @@ def render_repr(obj: Any, name: str, error: str | None = None) -> dict[str, Any]
 
 def fingerprint_repr(obj: Any) -> str:
     return hashlib.blake2b(short_repr(obj, 4096).encode(), digest_size=12).hexdigest()
+
+
+MAX_FINGERPRINT_ITEMS = 100_000
+
+
+def fingerprint_collection(obj: Any) -> str:
+    """Every item counts: a short repr only sees the first dozen."""
+    if len(obj) > MAX_FINGERPRINT_ITEMS:
+        return f"{id(obj)}:{len(obj)}"
+    try:
+        text = repr(obj)
+    except Exception:
+        return fingerprint_repr(obj)
+    return hashlib.blake2b(text.encode(), digest_size=12).hexdigest()
