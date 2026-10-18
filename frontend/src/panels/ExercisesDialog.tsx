@@ -14,8 +14,6 @@ const LIBRARIES: [string, string][] = [
   ["xarray", "xarray"],
   ["geopandas", "GeoPandas"],
   ["duckdb", "DuckDB spatial"],
-  ["zonal", "Zonal stats (exactextract)"],
-  ["h3", "H3"],
   ["formats", "File formats"],
 ];
 const LEVELS: [string, string][] = [

@@ -4,7 +4,7 @@ Renderers run inside the kernel. Each one takes ``(obj, name)`` and returns
 ``{kind, name, data, meta}``; numpy arrays inside ``data`` travel as binary
 buffers. A renderer may return ``None`` to decline (e.g. a list that does not
 hold geometries); the next renderer registered for the same type is tried
-(a list of H3 cells), then lookup continues along the MRO and ends at ``repr``.
+(e.g. another kind of list), then lookup continues along the MRO and ends at ``repr``.
 
 Types are registered by fully qualified name so that heavy libraries (GDAL,
 rasterio, xarray…) are only imported once the user imports them.

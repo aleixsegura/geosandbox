@@ -1,6 +1,6 @@
 # geo-sandbox
 
-A local sandbox for learning Shapely, GDAL/OGR, pyproj, Rasterio, xarray, GeoPandas, DuckDB spatial, H3 and exactextract, plus geospatial file formats, by experimenting. You write Python on the left and see your objects drawn on the right. Geometries go on graph paper, anything with a CRS goes on a map, rasters get a GPU colormap, and CRS objects get a card.
+A local sandbox for learning Shapely, GDAL/OGR, pyproj, Rasterio, xarray, GeoPandas and DuckDB spatial, plus geospatial file formats, by experimenting. You write Python on the left and see your objects drawn on the right. Geometries go on graph paper, anything with a CRS goes on a map, rasters get a GPU colormap, and CRS objects get a card.
 
 ## Install and run
 
@@ -14,13 +14,11 @@ Other tasks:
 - `pixi run e2e` runs the Playwright tests on their own servers (ports 5174 and 8766, with their own kernel), so they never touch a running `pixi run dev`. They load every snippet, check that it renders and save screenshots to `frontend/e2e/screenshots/`.
 - `pixi run build` builds the production frontend. Once `frontend/dist` exists, the backend serves it itself at http://127.0.0.1:8765.
 
-The **Load snippet…** menu holds demo scripts from `snippets/`: one per library, three on file formats, one on zonal statistics with exactextract and one on the H3 hexagonal grid. In the editor, `Ctrl+Enter` runs the current `# %%` cell, `Shift+Enter` runs the whole file and `Ctrl+Shift+Enter` runs the selection. Press `C` (or the eraser in the canvas toolbar) to clear the canvas; the kernel keeps its variables and re-running a cell draws them again. Press `?` for every shortcut. Call `show(obj, label=None)` to draw something that isn't stored in a variable. A GeoDataFrame with numeric columns can be colored by one of them (**Color by** in the inspector); like raster colormaps, this runs on the GPU and never re-runs code.
+The **Load snippet…** menu holds demo scripts from `snippets/`: one per library and three on file formats. In the editor, `Ctrl+Enter` runs the current `# %%` cell, `Shift+Enter` runs the whole file and `Ctrl+Shift+Enter` runs the selection. Press `C` (or the eraser in the canvas toolbar) to clear the canvas; the kernel keeps its variables and re-running a cell draws them again. Press `?` for every shortcut. Call `show(obj, label=None)` to draw something that isn't stored in a variable. A GeoDataFrame with numeric columns can be colored by one of them (**Color by** in the inspector); like raster colormaps, this runs on the GPU and never re-runs code.
 
 Assign a `pathlib.Path` to draw a file and see what's inside it. Vector files (GeoJSON, KML, GeoPackage, FlatGeobuf, Shapefile, GeoParquet) show their layers, schema, driver capabilities and companion files, and GeoParquet also shows its row groups and `geo` metadata. Raster files (GeoTIFF, COG) show whether they pass GDAL's COG validator and where their image directories sit. NetCDF files and Zarr stores open as xarray Datasets, with each variable's chunks, codecs and packed dtype. Any rasterio or GDAL dataset, and any DataArray read from a file, also reports its internal layout: strips, tiles or chunks, compression, overviews, and how many chunks one map or one pixel's time series has to read. **show blocks** draws the block or chunk grid on the canvas.
 
 DuckDB relations (`con.sql("SELECT …")`) with a `GEOMETRY` column are drawn like GeoDataFrames, with their SQL and column types in the inspector. They go on the map only when the column type carries a CRS (`ST_SetCRS(geom, 'EPSG:25831')`), and relations without geometry show their rows. The spatial extension isn't on conda-forge, so `con.install_extension("spatial")` downloads it once from DuckDB's servers.
-
-Once `h3` is imported, an H3 cell id, or a list or set of them, is drawn as hexagons on the map. Each cell carries its resolution and area, so you can colour by either one.
 
 ## Exercises with Claude
 
