@@ -31,6 +31,9 @@ python-duckdb = "*"
 h3-py = "*"
 exactextract = "*"
 libgdal-arrow-parquet = "*"
+zarr = "*"
+netcdf4 = "*"
+libgdal-netcdf = "*"
 
 [tasks]
 dev = "python scripts/dev.py"
