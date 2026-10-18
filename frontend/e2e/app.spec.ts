@@ -12,6 +12,12 @@ const SNIPPETS: { name: string; vars: string[]; mode: "paper" | "map"; select?: 
   { name: "geopandas_towns", vars: ["towns", "towns_utm", "areas"], mode: "map", select: "areas" },
   { name: "formats_vector", vars: ["municipalities", "geojson", "shapefile", "kml", "geoparquet"], mode: "map", select: "geoparquet" },
   { name: "formats_raster", vars: ["striped", "tiled", "cog", "window_area", "overview"], mode: "map", select: "cog" },
+  {
+    name: "duckdb_spatial",
+    vars: ["wells", "per_parcel", "river", "near_river", "summary", "wells_wgs84", "parcels_file", "from_parquet"],
+    mode: "map",
+    select: "near_river",
+  },
 ];
 
 function collectErrors(page: Page): string[] {
@@ -170,6 +176,25 @@ test("files show what is inside them: schema, Parquet metadata, COG layout and b
   await page.waitForTimeout(600);
   await page.getByTestId("right-canvas").screenshot({ path: `${SHOTS}/cog-blocks.png` });
   await page.screenshot({ path: `${SHOTS}/cog-blocks-full.png` });
+  expect(errors).toEqual([]);
+});
+
+test("DuckDB relations show their SQL and color by a query column", async ({ page }) => {
+  const errors = collectErrors(page);
+  await boot(page);
+  await runSnippet(page, "duckdb_spatial");
+  await page.getByTestId("var-summary").click();
+  await expect(page.getByTestId("inspector")).toContainText("mean_depth");
+  await expect(page.getByTestId("sql-columns")).toContainText("DOUBLE");
+  for (const v of ["wells", "river", "near_river", "wells_wgs84", "parcels_file", "from_parquet"]) {
+    await page.getByTestId(`var-${v}`).locator("input").uncheck();
+  }
+  await page.getByTestId("var-per_parcel").click();
+  await expect(page.getByTestId("sql-columns")).toContainText("GEOMETRY('EPSG:25831')");
+  await page.getByTestId("color-by").selectOption("wells");
+  await page.waitForTimeout(600);
+  await page.getByTestId("right-canvas").screenshot({ path: `${SHOTS}/duckdb-per-parcel.png` });
+  await page.screenshot({ path: `${SHOTS}/duckdb-per-parcel-full.png` });
   expect(errors).toEqual([]);
 });
 

@@ -41,10 +41,11 @@ export function CopyButton({ text, label = "Copy" }: { text: string; label?: str
   );
 }
 
-export function Code({ children, maxHeight = 160 }: { children: string; maxHeight?: number }) {
+/** Preformatted text; `wrap={false}` keeps column-aligned output (tables) intact and scrolls instead. */
+export function Code({ children, maxHeight = 160, wrap = true }: { children: string; maxHeight?: number; wrap?: boolean }) {
   return (
     <pre
-      className="overflow-auto whitespace-pre-wrap break-all rounded border border-rule bg-sunken/60 px-2.5 py-2 font-mono text-2xs leading-[1.1rem] text-ink"
+      className={`overflow-auto ${wrap ? "whitespace-pre-wrap break-all" : "whitespace-pre"} rounded border border-rule bg-sunken/60 px-2.5 py-2 font-mono text-2xs leading-[1.1rem] text-ink`}
       style={{ maxHeight }}
     >
       {children}

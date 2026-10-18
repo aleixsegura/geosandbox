@@ -1,7 +1,7 @@
 import { rasterOf } from "../canvas/display";
 import { useStore, type VarEntry } from "../state/store";
 import { VAR_COLORS } from "../theme/themes";
-import { Code, Section } from "../ui/bits";
+import { Code, CopyButton, Prop, Section } from "../ui/bits";
 import { FileSection, LayoutSection } from "./inspectors/FileInspector";
 import GeometryInspector from "./inspectors/GeometryInspector";
 import { CrsInspector, TransformerInspector, TransformInspector } from "./inspectors/ProjInspector";
@@ -77,17 +77,36 @@ function DatasetInspector({ entry }: { entry: VarEntry }) {
   );
 }
 
+/** The query behind a DuckDB relation and the types of its columns. */
+function QuerySection({ meta }: { meta: Record<string, any> }) {
+  return (
+    <Section title="SQL" right={<CopyButton text={meta.sql} />}>
+      <Code maxHeight={140}>{meta.sql}</Code>
+      <div className="mt-2" data-testid="sql-columns">
+        {meta.column_types.map((c: any) => (
+          <Prop key={c.name} label={c.name}>
+            <span className={c.name === meta.geometry_column ? "text-accent" : ""}>{c.type}</span>
+          </Prop>
+        ))}
+      </div>
+      {meta.truncated && <div className="mt-1.5 font-sans text-2xs text-faint">Drawing the first {meta.truncated.toLocaleString()} rows.</div>}
+    </Section>
+  );
+}
+
 function ReprInspector({ entry }: { entry: VarEntry }) {
   const { meta } = entry.payload;
   return (
     <Section title={meta.type}>
-      <Code maxHeight={260}>{meta.repr}</Code>
+      <Code maxHeight={260} wrap={!meta.preformatted}>
+        {meta.repr}
+      </Code>
       {meta.render_error && (
         <div className="mt-2 rounded border border-danger/30 bg-danger/5 px-2 py-1 font-mono text-2xs text-danger">
           renderer failed: {meta.render_error}
         </div>
       )}
-      <div className="mt-2 font-sans text-2xs text-faint">Not drawable — listed with its short repr.</div>
+      {!meta.preformatted && <div className="mt-2 font-sans text-2xs text-faint">Not drawable — listed with its short repr.</div>}
     </Section>
   );
 }
@@ -130,6 +149,7 @@ export default function Inspector() {
       {p.kind === "transformer" && <TransformerInspector entry={entry} />}
       {p.kind === "transform" && <TransformInspector entry={entry} />}
       {p.kind === "repr" && <ReprInspector entry={entry} />}
+      {p.meta.sql && <QuerySection meta={p.meta} />}
     </div>
   );
 }

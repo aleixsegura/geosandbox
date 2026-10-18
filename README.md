@@ -18,6 +18,8 @@ The **Load snippet…** menu holds demo scripts from `snippets/`, one per librar
 
 Assign a `pathlib.Path` to draw a file and see what's inside it. Vector files (GeoJSON, KML, GeoPackage, FlatGeobuf, Shapefile, GeoParquet) show their layers, schema, driver capabilities and companion files, and GeoParquet also shows its row groups and `geo` metadata. Raster files (GeoTIFF, COG) show whether they pass GDAL's COG validator and where their image directories sit. Any rasterio or GDAL dataset also reports its internal layout (strips or tiles, compression, overviews), and **show blocks** draws its block grid on the canvas.
 
+DuckDB relations (`con.sql("SELECT …")`) with a `GEOMETRY` column are drawn like GeoDataFrames, with their SQL and column types in the inspector. They go on the map only when the column type carries a CRS (`ST_SetCRS(geom, 'EPSG:25831')`), and relations without geometry show their rows. The spatial extension isn't on conda-forge, so `con.install_extension("spatial")` downloads it once from DuckDB's servers.
+
 ## Exercises with Claude
 
 **Exercises** in the top bar (or `E`) asks Claude, through the Anthropic Messages API, for a set of exercises on a library: how many, level, language and an optional topic. They open in the editor, one `# %%` cell each with the statement, a hint and starter code that builds its own data.

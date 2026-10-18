@@ -13,6 +13,7 @@ const LIBRARIES: [string, string][] = [
   ["rasterio", "Rasterio"],
   ["xarray", "xarray"],
   ["geopandas", "GeoPandas"],
+  ["duckdb", "DuckDB spatial"],
   ["formats", "File formats"],
 ];
 const LEVELS: [string, string][] = [

@@ -29,6 +29,7 @@ function summary(e: VarEntry): { text: string; badge?: { text: string; tone: "ne
         badge: meta.warnings?.length ? { text: "check", tone: "danger" } : undefined,
       };
     default:
+      if (meta.sql) return { text: `${meta.column_types.length} columns`, badge: { text: "SQL", tone: "accent" } };
       return { text: meta.repr ?? meta.type ?? "" };
   }
 }
