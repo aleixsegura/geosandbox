@@ -360,7 +360,7 @@ test("exercises from Claude open in the editor as cells", async ({ page }) => {
   await page.getByTestId("ex-generate").click();
   await expect(page.getByTestId("ex-generate")).toHaveText("Claude is writing…");
   await expect(page.getByTestId("exercises")).toHaveCount(0);
-  expect(sent).toEqual({ library: "shapely", count: 2, level: "beginner", language: "es", topic: "buffers" });
+  expect(sent).toEqual({ library: "shapely", count: 2, level: "beginner", language: "en", topic: "buffers" });
   expect(await page.evaluate(() => (window as any).__editorApi.editor.getValue())).toContain("# %% Ejercicio 2 · Unión");
 });
 

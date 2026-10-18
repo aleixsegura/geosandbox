@@ -36,14 +36,14 @@ LIBRARIES = {
     "duckdb": "DuckDB with the spatial extension (SQL: ST_* functions, spatial joins, GeoParquet), from Python",
     "formats": "geospatial file formats: GeoTIFF vs Cloud Optimized GeoTIFF, GeoParquet, GeoJSON, KML, GeoPackage, FlatGeobuf, Shapefile, NetCDF and Zarr (chunking, compression, packing)",
 }
-LANGUAGES = {"es": "Spanish", "en": "English"}
+LANGUAGES = {"en": "English", "es": "Spanish"}
 
 
 class ExerciseRequest(BaseModel):
     library: Literal["shapely", "gdal", "pyproj", "rasterio", "xarray", "geopandas", "duckdb", "formats"]
     count: int = Field(5, ge=1, le=10)
     level: Literal["beginner", "intermediate", "advanced"] = "beginner"
-    language: Literal["es", "en"] = "es"
+    language: Literal["en", "es"] = "en"
     topic: str = Field("", max_length=300)
 
 

@@ -22,8 +22,8 @@ const LEVELS: [string, string][] = [
   ["advanced", "Advanced"],
 ];
 const LANGUAGES: [string, string][] = [
-  ["es", "Español"],
   ["en", "English"],
+  ["es", "Español"],
 ];
 
 function Field({ label, children }: { label: string; children: ReactNode }) {
@@ -54,7 +54,7 @@ export default function ExercisesDialog() {
   const [library, setLibrary] = useState("shapely");
   const [count, setCount] = useState(5);
   const [level, setLevel] = useState("beginner");
-  const [language, setLanguage] = useState("es");
+  const [language, setLanguage] = useState("en");
   const [topic, setTopic] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);

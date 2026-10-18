@@ -21,7 +21,7 @@ DATA = {
 
 
 def test_format_makes_one_cell_per_exercise():
-    code = format_exercises(DATA, ExerciseRequest(library="shapely", count=2))
+    code = format_exercises(DATA, ExerciseRequest(library="shapely", count=2, language="es"))
     cells = [line for line in code.splitlines() if line.startswith("# %%")]
     assert cells == ["# %% Ejercicio 1 · Un buffer", "# %% Ejercicio 2 · Roto % % raro"]
     assert "# Pista: Usa .buffer()" in code
@@ -70,7 +70,7 @@ async def test_generate_through_the_sdk(monkeypatch):
         })
 
     async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as http:
-        out = await exercises.generate(ExerciseRequest(library="shapely", count=2, topic="buffers"), http)
+        out = await exercises.generate(ExerciseRequest(library="shapely", count=2, topic="buffers", language="es"), http)
 
     body = seen["body"]
     assert seen["url"].endswith("/v1/messages") and seen["key"] == "sk-test"
