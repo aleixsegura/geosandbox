@@ -72,6 +72,7 @@ function DatasetInspector({ entry }: { entry: VarEntry }) {
         <Summary summary={meta.summary} />
       </Section>
       {child && <RasterControls name={entry.name} raster={child} />}
+      {child && <LayoutSection name={entry.name} meta={child.meta} />}
       {child && <RasterProperties raster={child} />}
     </>
   );

@@ -128,3 +128,69 @@ def test_rewriting_a_file_changes_the_fingerprint(tmp_path, towns):
     towns.iloc[:1].to_file(path)
     os.utime(path, ns=(1, 1))
     assert renderers.fingerprint(path) != before
+
+
+@pytest.fixture
+def cube():
+    import pandas as pd
+    import xarray as xr
+
+    return xr.Dataset(
+        {"ndvi": (("time", "lat", "lon"), np.random.default_rng(0).random((6, 30, 40)).astype("float32"))},
+        coords={
+            "time": pd.date_range("2024-01-01", periods=6, freq="MS"),
+            "lat": np.linspace(41.7, 41.5, 30),
+            "lon": np.linspace(0.4, 0.8, 40),
+        },
+    )
+
+
+def test_netcdf3_is_contiguous(rt, tmp_path, cube):
+    path = tmp_path / "classic.nc"
+    cube.to_netcdf(path, format="NETCDF3_CLASSIC")
+    out = rt(path, "f")
+    f = out["meta"]["file"]
+    layout = out["data"]["variables"]["ndvi"]["meta"]["layout"]
+    assert out["kind"] == "dataset" and f["format"] == "NETCDF3_CLASSIC" and f["kind"] == "multidim"
+    assert f["variables"][0]["chunks"] is None and layout["organization"] == "contiguous"
+
+
+def test_netcdf4_chunks_one_map_per_chunk(rt, tmp_path, cube):
+    path = tmp_path / "maps.nc"
+    cube.to_netcdf(path, encoding={"ndvi": {"zlib": True, "complevel": 4, "chunksizes": (1, 15, 20)}})
+    out = rt(path, "f")
+    var = out["meta"]["file"]["variables"][0]
+    layout = out["data"]["variables"]["ndvi"]["meta"]["layout"]
+    assert out["meta"]["file"]["format"] == "NETCDF4"
+    assert var["chunks"] == [1, 15, 20] and var["compression"] == "shuffle + zlib 4"
+    assert layout["chunk_shape"] == {"time": 1, "lat": 15, "lon": 20} and layout["blocks"] == [2, 2]
+    assert layout["reads"] == {"slice": 4, "series": 6, "series_dims": ["time"]}
+    assert layout["grid"]["space"] == "lnglat"  # lat/lon coordinates: on the map with its chunk grid
+
+
+def test_zarr_store_is_a_folder_with_packed_values(rt, tmp_path, cube):
+    path = tmp_path / "cube.zarr"
+    cube.to_zarr(path, encoding={"ndvi": {"chunks": (6, 15, 20), "dtype": "int16", "scale_factor": 0.0001, "_FillValue": -9999}})
+    out = rt(path, "f")
+    f = out["meta"]["file"]
+    var = f["variables"][0]
+    storage = out["data"]["variables"]["ndvi"]["meta"]["layout"]["storage"]
+    assert f["format"].startswith("Zarr v") and f["objects"] > 1 and f["stored_chunks"]["ndvi"] == 4
+    assert var["disk_dtype"] == "int16" and var["dtype"] == "float64" and var["packed"]
+    assert storage == {"dtype": "int16", "scale_factor": 0.0001, "add_offset": None, "fill_value": "-9999"}
+
+
+def test_open_dataset_keeps_its_layout_but_memory_arrays_have_none(rt, tmp_path, cube):
+    import xarray as xr
+
+    path = tmp_path / "maps.nc"
+    cube.to_netcdf(path, encoding={"ndvi": {"chunksizes": (1, 30, 40)}})
+    with xr.open_dataset(path) as ds:
+        assert rt(ds.ndvi, "da")["meta"]["layout"]["chunk_shape"]["time"] == 1
+    assert "layout" not in rt(cube.ndvi, "mem")["meta"]
+
+
+def test_other_folders_are_not_drawn(rt, tmp_path, towns):
+    with pytest.warns(UserWarning):  # column names longer than 10 characters
+        towns.to_file(tmp_path / "towns.shp")
+    assert rt(tmp_path, "folder")["kind"] == "repr"

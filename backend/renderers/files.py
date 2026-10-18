@@ -2,10 +2,12 @@
 
 Vector files (GeoJSON, KML, GeoPackage, FlatGeobuf, Shapefile, GeoParquet…)
 are read with pyogrio and drawn like a GeoDataFrame; raster files (GeoTIFF,
-COG…) are opened with rasterio and drawn like a dataset. Either way ``meta.file``
-describes the container itself: driver, size on disk, layers and schema,
-sidecar files, Parquet row groups and GeoParquet metadata, or whether a
-GeoTIFF is a valid Cloud Optimized GeoTIFF.
+COG…) are opened with rasterio and drawn like a dataset; multidimensional
+ones (NetCDF, Zarr) are opened with xarray and drawn like an xarray Dataset.
+Either way ``meta.file`` describes the container itself: driver, size on disk,
+layers and schema, sidecar files, Parquet row groups and GeoParquet metadata,
+whether a GeoTIFF is a valid Cloud Optimized GeoTIFF, or the NetCDF/Zarr
+format with each variable's chunks and codecs.
 
 The fingerprint includes the modification time, so rewriting the file and
 re-running the cell redraws it even though the ``Path`` did not change.
@@ -23,7 +25,8 @@ MAX_FILE_FEATURES = 20_000
 MAX_LAYERS = 20
 MAX_ROW_GROUPS = 64
 TIFF_SUFFIXES = (".tif", ".tiff", ".gtiff")
-FOLDER_FORMATS = (".gdb",)  # Esri File Geodatabase
+FOLDER_FORMATS = (".gdb", ".zarr")  # Esri File Geodatabase, Zarr store
+NETCDF_SUFFIXES = (".nc", ".nc4", ".cdf", ".netcdf")
 SHAPEFILE_SIDECARS = (".shx", ".dbf", ".prj", ".cpg", ".qix", ".sbn", ".sbx")
 APPENDED_SIDECARS = (".aux.xml", ".ovr", ".msk", "-wal", "-shm")  # GDAL PAM, external overviews, SQLite journal
 
@@ -204,11 +207,75 @@ def render_raster_file(path: Path, name: str) -> dict[str, Any] | None:
     return out
 
 
+# ---------------------------------------------------------------------------- multidimensional
+def _netcdf_meta(path: Path) -> dict[str, Any]:
+    import netCDF4
+
+    with netCDF4.Dataset(path) as nc:
+        return {
+            "format": nc.data_model,
+            "groups": list(nc.groups),
+            "unlimited_dims": [name for name, dim in nc.dimensions.items() if dim.isunlimited()],
+        }
+
+
+def _zarr_meta(path: Path) -> dict[str, Any]:
+    import zarr
+
+    group = zarr.open_group(path, mode="r")
+    return {
+        "format": f"Zarr v{group.metadata.zarr_format}",
+        "groups": [name for name, _ in group.groups()],
+        "consolidated": (path / "zarr.json").is_file() and "consolidated_metadata" in (path / "zarr.json").read_text()
+        or (path / ".zmetadata").is_file(),
+        "objects": sum(1 for p in path.rglob("*") if p.is_file()),
+        "stored_chunks": {name: int(arr.nchunks_initialized) for name, arr in group.arrays()},
+    }
+
+
+def render_multidim_file(path: Path, name: str) -> dict[str, Any] | None:
+    import xarray as xr
+
+    from backend.renderers.xarray_ import compression, render_dataset
+
+    is_zarr = path.suffix.lower() == ".zarr"
+    try:
+        ds = xr.open_dataset(path, engine="zarr" if is_zarr else "netcdf4")
+    except Exception:
+        return None
+    with ds:
+        out = render_dataset(ds, name)
+        variables = []
+        for var_name, da in ds.data_vars.items():
+            enc = da.encoding
+            chunks = enc.get("preferred_chunks")
+            variables.append(
+                {
+                    "name": str(var_name),
+                    "dims": [str(d) for d in da.dims],
+                    "shape": list(da.shape),
+                    "disk_dtype": str(enc["dtype"]) if "dtype" in enc else None,
+                    "dtype": str(da.dtype),
+                    "chunks": [int(chunks[d]) for d in da.dims] if chunks else None,
+                    "compression": compression(enc),
+                    "packed": "scale_factor" in enc or "add_offset" in enc,
+                }
+            )
+    meta = _file_meta(path, "multidim", "Zarr" if is_zarr else "netCDF")
+    meta.update(_zarr_meta(path) if is_zarr else _netcdf_meta(path))
+    meta["variables"] = variables
+    out["meta"]["file"] = meta
+    out["meta"]["title"] = f"{path.name} · {meta['format']}"
+    return out
+
+
 @register("pathlib.Path", "pathlib._local.Path", fingerprint=_fingerprint)
 def render_path(path: Path, name: str) -> dict[str, Any] | None:
     # Folders are only datasets in a few formats; GDAL would read any folder of Shapefiles as one.
     if not path.exists() or (path.is_dir() and path.suffix.lower() not in FOLDER_FORMATS):
         return None
+    if path.suffix.lower() in (*NETCDF_SUFFIXES, ".zarr"):
+        return render_multidim_file(path, name)
     layers = _layers(path)
     if layers:
         return render_vector_file(path, layers, name)

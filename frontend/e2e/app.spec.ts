@@ -12,6 +12,7 @@ const SNIPPETS: { name: string; vars: string[]; mode: "paper" | "map"; select?: 
   { name: "geopandas_towns", vars: ["towns", "towns_utm", "areas"], mode: "map", select: "areas" },
   { name: "formats_vector", vars: ["municipalities", "geojson", "shapefile", "kml", "geoparquet"], mode: "map", select: "geoparquet" },
   { name: "formats_raster", vars: ["striped", "tiled", "cog", "window_area", "overview"], mode: "map", select: "cog" },
+  { name: "formats_cube", vars: ["cube", "classic", "maps", "series", "store"], mode: "map", select: "series" },
   {
     name: "duckdb_spatial",
     vars: ["wells", "per_parcel", "river", "near_river", "summary", "wells_wgs84", "parcels_file", "from_parquet"],
@@ -183,6 +184,27 @@ test("files show what is inside them: schema, Parquet metadata, COG layout and b
   await page.waitForTimeout(600);
   await page.getByTestId("right-canvas").screenshot({ path: `${SHOTS}/cog-blocks.png` });
   await page.screenshot({ path: `${SHOTS}/cog-blocks-full.png` });
+  expect(errors).toEqual([]);
+});
+
+test("NetCDF and Zarr show their chunks, codecs and packing", async ({ page }) => {
+  const errors = collectErrors(page);
+  await boot(page);
+  await runSnippet(page, "formats_cube");
+  await page.getByTestId("var-classic").click();
+  await expect(page.getByTestId("multidim-vars")).toContainText("contiguous");
+  await page.getByTestId("var-maps").click();
+  await expect(page.getByTestId("chunk-reads")).toContainText("36 chunks");
+  await page.getByTestId("var-store").click();
+  await expect(page.getByTestId("multidim-vars")).toContainText("int16 → float64");
+  for (const v of ["cube", "classic", "maps", "store"]) await page.getByTestId(`var-${v}`).locator("input").uncheck();
+  await page.getByTestId("var-series").click();
+  await expect(page.getByTestId("multidim-vars")).toContainText("36×50×50");
+  await expect(page.getByTestId("chunk-reads")).toContainText("48 chunks");
+  await page.getByTestId("toggle-blocks").click();
+  await page.waitForTimeout(600);
+  await page.getByTestId("right-canvas").screenshot({ path: `${SHOTS}/netcdf-chunks.png` });
+  await page.screenshot({ path: `${SHOTS}/netcdf-chunks-full.png` });
   expect(errors).toEqual([]);
 });
 

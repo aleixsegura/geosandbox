@@ -684,22 +684,24 @@ function blockGridPaths(r: { data: Record<string, any>; meta: Record<string, any
   return paths;
 }
 
-function blockGridLayer(id: string, entry: VarEntry, ctx: LayerContext, t: number): Layer | null {
+/** Ink on a paper casing, so the grid reads over light and dark colormaps alike. */
+function blockGridLayers(id: string, entry: VarEntry, ctx: LayerContext, t: number): Layer[] {
   const style = ctx.styles[entry.name];
   const r = rasterOf(entry.payload, style);
-  if (!style?.showBlocks || !r?.data.blocks || !r.meta.layout?.grid) return null;
-  return new PathLayer({
-    id: `${id}-blocks`,
+  if (!style?.showBlocks || !r?.data.blocks || !r.meta.layout?.grid) return [];
+  const common = {
     data: blockGridPaths(r, ctx.flipY),
     getPath: (d: any) => d,
     positionFormat: "XY",
-    getColor: rgba(hexToRgb(THEME.ink), 170),
-    getWidth: 1,
     widthUnits: "pixels",
     opacity: t * dimFactor(entry.name, ctx),
     coordinateSystem: r.meta.layout.grid.space === "lnglat" ? COORDINATE_SYSTEM.LNGLAT : COORDINATE_SYSTEM.CARTESIAN,
     parameters: { depthTest: false } as any,
-  } as any);
+  };
+  return [
+    new PathLayer({ id: `${id}-blocks-casing`, getColor: rgba(hexToRgb(THEME.paper), 200), getWidth: 3, ...common } as any),
+    new PathLayer({ id: `${id}-blocks`, getColor: rgba(hexToRgb(THEME.ink), 200), getWidth: 1, ...common } as any),
+  ];
 }
 
 // ---------------------------------------------------------------- transforms
@@ -845,8 +847,7 @@ export function buildLayers(entries: VarEntry[], ctx: LayerContext): Layer[] {
       case "dataset": {
         const layer = rasterLayer(id, entry, ctx, t);
         if (layer) below.push(layer);
-        const grid = blockGridLayer(id, entry, ctx, t);
-        if (grid) top.push(grid);
+        top.push(...blockGridLayers(id, entry, ctx, t));
         const label = labelSpec(entry, entry.name, ctx, t, color);
         if (label) labels.push(label);
         break;

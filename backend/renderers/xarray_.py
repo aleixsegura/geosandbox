@@ -3,6 +3,10 @@
 Spatial dims are recognised by name (``y/lat/latitude…``, ``x/lon/longitude…``),
 otherwise the last two dims are used. A CRS comes from rioxarray (``.rio.crs``);
 plain ``lat``/``lon`` coordinates are assumed to be EPSG:4326.
+
+Arrays read from a file (NetCDF, Zarr) keep their on-disk encoding: it is
+reported as the chunk layout (chunk shape, codecs, packed dtype) with the
+spatial chunk grid as lines, like the blocks of a GeoTIFF.
 """
 
 from __future__ import annotations
@@ -15,7 +19,7 @@ import numpy as np
 
 from backend.renderers import payload, register
 from backend.renderers.fallback import short_repr
-from backend.renderers.raster import block_mean, downsample_factor, raster_payload
+from backend.renderers.raster import attach_block_grid, block_layout, block_mean, downsample_factor, raster_payload
 
 Y_NAMES = ("y", "lat", "latitude", "northing", "row", "rows", "rlat")
 X_NAMES = ("x", "lon", "longitude", "easting", "col", "cols", "column", "rlon")
@@ -99,10 +103,66 @@ def _summary(obj: Any) -> dict[str, Any]:
     }
 
 
+def compression(encoding: dict[str, Any]) -> str | None:
+    """Codecs of an encoded variable, as text: netCDF4 flags or Zarr codec objects."""
+    parts = []
+    for codec in [*(encoding.get("filters") or ()), *(encoding.get("compressors") or ())]:
+        parts.append(type(codec).__name__.removesuffix("Codec").lower())
+    for flag in ("zlib", "zstd", "bzip2", "szip", "blosc"):
+        if encoding.get(flag):
+            level = encoding.get("complevel")
+            parts.append(f"{flag} {level}" if level is not None else flag)
+    if encoding.get("shuffle") and parts:
+        parts.insert(0, "shuffle")
+    return " + ".join(parts) or None
+
+
+def chunk_layout(da: Any, y: str, x: str) -> dict[str, Any] | None:
+    """How a file-backed array is stored, or None for arrays built in memory."""
+    enc = da.encoding
+    if "source" not in enc and "original_shape" not in enc and "preferred_chunks" not in enc:
+        return None
+    chunks = {str(d): int(c) for d, c in (enc.get("preferred_chunks") or {}).items()}
+    contiguous = not chunks
+    shape = {str(d): int(s) for d, s in da.sizes.items()}
+    if contiguous:
+        chunks = dict(shape)
+    w, h = shape[str(x)], shape[str(y)]
+    cx, cy = min(chunks.get(str(x), w), w), min(chunks.get(str(y), h), h)
+    others = [d for d in shape if d not in (str(y), str(x))]
+    per_slice = math.ceil(w / cx) * math.ceil(h / cy)
+    per_series = int(np.prod([math.ceil(shape[d] / chunks.get(d, shape[d])) for d in others])) if others else 1
+    layout = block_layout(
+        width=w,
+        height=h,
+        block=(cx, cy),
+        overviews=[],
+        compression=compression(enc),
+        interleave=None,
+        layout=None,
+    )
+    disk_dtype = enc.get("dtype")
+    layout.update(
+        {
+            "organization": "contiguous" if contiguous else "chunks",
+            "chunk_shape": chunks,
+            "reads": {"slice": per_slice, "series": per_series, "series_dims": others},
+            "storage": {
+                "dtype": str(disk_dtype) if disk_dtype is not None else None,
+                "scale_factor": enc.get("scale_factor"),
+                "add_offset": enc.get("add_offset"),
+                "fill_value": str(enc["_FillValue"]) if "_FillValue" in enc else None,
+            },
+        }
+    )
+    return layout
+
+
 def dataarray_payload(da: Any, name: str) -> dict[str, Any] | None:
     if da.ndim < 2 or da.dtype.kind not in "biuf":
         return None
     y, x = spatial_dims(da)
+    layout = chunk_layout(da, y, x)
     extra = [d for d in da.dims if d not in (y, x)]
     da = da.transpose(*extra, y, x)
     h, w = da.sizes[y], da.sizes[x]
@@ -138,7 +198,7 @@ def dataarray_payload(da: Any, name: str) -> dict[str, Any] | None:
     if factor > 1:
         values, valid = block_mean(values, valid, factor)
 
-    transform = _regular_transform(da, y, x)
+    transform = full_transform = _regular_transform(da, y, x)
     crs, assumed = _crs(da, y, x)
     if transform is not None and factor > 1:
         from affine import Affine
@@ -160,7 +220,7 @@ def dataarray_payload(da: Any, name: str) -> dict[str, Any] | None:
             "truncated": truncated,
         }
     units = da.attrs.get("units")
-    return raster_payload(
+    out = raster_payload(
         name,
         values,
         valid,
@@ -183,6 +243,9 @@ def dataarray_payload(da: Any, name: str) -> dict[str, Any] | None:
             "summary": _summary(da),
         },
     )
+    if layout is not None:
+        attach_block_grid(out, layout, full_transform, crs)
+    return out
 
 
 def _fingerprint_dataarray(da: Any) -> str:

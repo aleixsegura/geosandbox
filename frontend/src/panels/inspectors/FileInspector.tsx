@@ -1,5 +1,5 @@
 // What a file looks like inside: container, schema, Parquet row groups, COG
-// structure; and how any dataset is cut into blocks and overviews.
+// structure, NetCDF/Zarr chunks; and how any dataset is cut into blocks.
 
 import type { ReactNode } from "react";
 
@@ -155,6 +155,40 @@ function CogDetails({ cog }: { cog: any }) {
   );
 }
 
+function MultidimDetails({ f }: { f: any }) {
+  const isZarr = f.driver === "Zarr";
+  return (
+    <Section title={f.format}>
+      <div data-testid="multidim">
+        {f.groups.length > 0 && <Prop label="groups">{f.groups.join(", ")}</Prop>}
+        {f.unlimited_dims?.length > 0 && <Prop label="unlimited dims">{f.unlimited_dims.join(", ")}</Prop>}
+        {isZarr && (
+          <>
+            <Prop label="files in the store">{f.objects.toLocaleString()}</Prop>
+            <Prop label="consolidated metadata">{f.consolidated ? "yes" : "no"}</Prop>
+          </>
+        )}
+        <div className="mt-2">
+          <Table
+            testId="multidim-vars"
+            head={["variable", "on disk → memory", "chunks", "codec"]}
+            rows={f.variables.map((v: any) => [
+              v.name,
+              v.disk_dtype && v.disk_dtype !== v.dtype ? `${v.disk_dtype} → ${v.dtype}` : v.dtype,
+              v.chunks ? v.chunks.join("×") : "contiguous",
+              v.compression ?? "none",
+            ])}
+          />
+        </div>
+        {f.variables.some((v: any) => v.packed) && (
+          <Note>Packed variables store small integers and are unpacked with scale_factor / add_offset when read.</Note>
+        )}
+        {isZarr && <Note>A Zarr store is a folder: one object per chunk, so a cloud reader fetches exactly the chunks it needs.</Note>}
+      </div>
+    </Section>
+  );
+}
+
 export function FileSection({ meta }: { meta: Record<string, any> }) {
   const f = meta.file;
   return (
@@ -173,6 +207,7 @@ export function FileSection({ meta }: { meta: Record<string, any> }) {
         )}
       </Section>
       {f.kind === "vector" && <VectorDetails f={f} />}
+      {f.kind === "multidim" && <MultidimDetails f={f} />}
       {f.cog && <CogDetails cog={f.cog} />}
     </>
   );
@@ -184,6 +219,7 @@ export function LayoutSection({ name, meta }: { name: string; meta: Record<strin
   const l = meta.layout;
   if (!style || !l) return null;
   const [bw, bh] = l.block;
+  const chunked = l.organization === "chunks" || l.organization === "contiguous";
   return (
     <Section
       title="Internal layout"
@@ -202,26 +238,55 @@ export function LayoutSection({ name, meta }: { name: string; meta: Record<strin
       }
     >
       <Prop label="organization">{l.organization}</Prop>
-      <Prop label="block size">
-        {bw} × {bh} px
-      </Prop>
-      <Prop label="blocks">
+      {chunked ? (
+        <Prop label="chunk shape">
+          {Object.entries(l.chunk_shape)
+            .map(([d, n]) => `${d} ${n}`)
+            .join(" × ")}
+        </Prop>
+      ) : (
+        <Prop label="block size">
+          {bw} × {bh} px
+        </Prop>
+      )}
+      <Prop label={chunked ? "chunks per map" : "blocks"}>
         {l.blocks[0]} × {l.blocks[1]} = {(l.blocks[0] * l.blocks[1]).toLocaleString()}
       </Prop>
       <Prop label="compression">{l.compression ?? "none"}</Prop>
       {l.interleave && <Prop label="interleave">{l.interleave}</Prop>}
       {l.layout && <Prop label="layout">{l.layout}</Prop>}
-      {l.overviews.length > 0 ? (
+      {l.storage && (
+        <>
+          <Prop label="dtype on disk">{l.storage.dtype ?? "—"}</Prop>
+          {l.storage.scale_factor != null && <Prop label="scale_factor">{String(l.storage.scale_factor)}</Prop>}
+          {l.storage.add_offset != null && <Prop label="add_offset">{String(l.storage.add_offset)}</Prop>}
+          {l.storage.fill_value != null && <Prop label="_FillValue">{l.storage.fill_value}</Prop>}
+        </>
+      )}
+      {l.overviews.length > 0 && (
         <div className="mt-2">
           <Table head={["overview", "factor", "size"]} rows={l.overviews.map((o: any, i: number) => [i, `1/${o.factor}`, `${o.width} × ${o.height}`])} />
         </div>
-      ) : (
-        <Prop label="overviews">none</Prop>
+      )}
+      {!chunked && !l.overviews.length && <Prop label="overviews">none</Prop>}
+      {l.reads && l.reads.series_dims.length > 0 && (
+        <div className="mt-2" data-testid="chunk-reads">
+          <Prop label="read one map">
+            {l.reads.slice} chunk{l.reads.slice === 1 ? "" : "s"}
+          </Prop>
+          <Prop label={`read one pixel along ${l.reads.series_dims.join(", ")}`}>
+            {l.reads.series} chunk{l.reads.series === 1 ? "" : "s"}
+          </Prop>
+        </div>
       )}
       <Note>
-        {l.organization === "strips"
-          ? "Strips span the full width: reading a small window still decodes whole rows."
-          : "Tiles let a reader fetch only the blocks that touch the window it needs."}
+        {l.organization === "contiguous"
+          ? "No chunks: the whole array is one block in row-major order, so a map is one contiguous read but a pixel's series is a strided read through all of it."
+          : chunked
+            ? "Chunks are the unit of reading and decompressing: their shape decides which questions are cheap to ask."
+            : l.organization === "strips"
+              ? "Strips span the full width: reading a small window still decodes whole rows."
+              : "Tiles let a reader fetch only the blocks that touch the window it needs."}
         {!l.grid && " Too many blocks to draw."}
       </Note>
     </Section>

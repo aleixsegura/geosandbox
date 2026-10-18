@@ -280,7 +280,7 @@ def attach_block_grid(out: dict[str, Any], layout: dict[str, Any], transform: An
     if on_map:
         from pyproj import Transformer
 
-        x, y = transform * (xy[:, 0], xy[:, 1])
+        x, y = transform @ (xy[:, 0], xy[:, 1])
         lon, lat = Transformer.from_crs(crs, "EPSG:4326", always_xy=True).transform(x, y)
         xy = np.column_stack([lon, lat])
     origin = (xy.min(axis=0) + xy.max(axis=0)) / 2
