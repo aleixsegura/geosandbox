@@ -2,12 +2,22 @@
 
 A local sandbox for learning Shapely, GDAL/OGR, pyproj, Rasterio, xarray, GeoPandas and DuckDB spatial, plus geospatial file formats, by experimenting. You write Python on the left and see your objects drawn on the right. Geometries go on graph paper, anything with a CRS goes on a map, rasters get a GPU colormap, and CRS objects get a card.
 
+## Requirements
+
+- [pixi](https://pixi.sh) (`curl -fsSL https://pixi.sh/install.sh | sh`). It installs everything else from conda-forge: Python 3.12, GDAL, Node 22… Nothing is pip-installed and no system GDAL is needed.
+- Linux, macOS (Intel or Apple Silicon) or Windows.
+- A browser. Optionally, an Anthropic API key for the **Exercises** feature.
+
 ## Install and run
 
 ```bash
+git clone https://github.com/aleixsegura/geosandbox.git
+cd geosandbox
 pixi install     # conda-forge environment: GDAL, rasterio, shapely, pyproj, xarray, Node…
-pixi run dev     # backend + frontend → http://127.0.0.1:5173
+pixi run dev     # backend + frontend → open http://127.0.0.1:5173
 ```
+
+The first `pixi run dev` also runs `npm install` for the frontend. Both servers bind to 127.0.0.1 only, so the kernel is never reachable from your network. Stop them with `Ctrl+C`.
 
 Other tasks:
 - `pixi run test` runs the backend tests (pytest: every renderer plus a real kernel).
@@ -22,7 +32,7 @@ DuckDB relations (`con.sql("SELECT …")`) with a `GEOMETRY` column are drawn li
 
 ## Exercises with Claude
 
-**Exercises** in the top bar (or `E`) asks Claude, through the Anthropic Messages API, for a set of exercises on a library: how many, level, language and an optional topic. They open in the editor, one `# %%` cell each with the statement, a hint and starter code that builds its own data.
+**Exercises** in the top bar (or `E`) asks Claude, through the Anthropic Messages API, for a set of exercises on a library: how many, level, language (English by default, or Spanish) and an optional topic. They open in the editor, one `# %%` cell each with the statement, a hint and starter code that builds its own data.
 
 The backend reads the key from `ANTHROPIC_API_KEY`, or from a `.env` file at the project root (gitignored):
 
