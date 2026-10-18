@@ -112,3 +112,18 @@ async def test_resync_resends_everything(kernel):
     await session.resync()
     names = {h["name"] for h, _ in rec.frames()}
     assert "r1" in names
+
+
+async def test_output_of_the_old_kernel_is_dropped_after_a_restart(kernel):
+    session, rec = kernel
+    await run(session, rec, "before = 1")
+    old = next(iter(session._sent))
+    await session.restart()
+    rec.clear()
+    # Late iopub output of a request sent to the previous kernel.
+    await session._handle_iopub(
+        {"msg_type": "stream", "content": {"name": "stdout", "text": "late\n"}, "parent_header": {"msg_id": old}}
+    )
+    assert rec.messages == []
+    await run(session, rec, "print('fresh')")
+    assert "fresh" in stdout(rec)

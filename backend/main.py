@@ -21,6 +21,7 @@ SNIPPETS = ROOT / "snippets"
 DIST = ROOT / "frontend" / "dist"
 
 clients: set[WebSocket] = set()
+background: set[asyncio.Task] = set()
 
 
 async def broadcast(message: Message) -> None:
@@ -106,8 +107,17 @@ async def handle(ws: WebSocket, msg: dict) -> None:
     elif kind == "restart":
         await session.restart()
     elif kind == "resync":
-        with contextlib.suppress(asyncio.TimeoutError):
-            await session.resync()
+        # In the background: re-rendering every variable can take seconds, and this
+        # tab's next messages (restart, execute) must not queue behind it.
+        task = asyncio.create_task(_resync())
+        background.add(task)
+        task.add_done_callback(background.discard)
+
+
+async def _resync() -> None:
+    # A restart cancels the pending request; a slow kernel times it out.
+    with contextlib.suppress(asyncio.TimeoutError, asyncio.CancelledError):
+        await session.resync()
 
 
 if DIST.is_dir():

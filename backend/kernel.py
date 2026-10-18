@@ -43,6 +43,10 @@ class KernelSession:
         self._offsets: dict[str, int] = {}
         self._replies: dict[str, asyncio.Future] = {}
         self._restarting = False
+        # Requests sent to the current kernel, and to the one before the last restart:
+        # iopub output of the old kernel can still be in flight after a restart.
+        self._sent: set[str] = set()
+        self._stale: set[str] = set()
 
     # ------------------------------------------------------------------ lifecycle
     async def start(self) -> None:
@@ -82,6 +86,7 @@ class KernelSession:
                     fut.cancel()
             self._replies.clear()
             self._offsets.clear()
+            self._stale, self._sent = self._sent, set()
             await self.km.restart_kernel(now=True)
             await self._wait_ready()
             await self._bootstrap()
@@ -124,6 +129,7 @@ class KernelSession:
     # ------------------------------------------------------------------ requests
     async def execute(self, code: str, line_offset: int = 0) -> str:
         msg_id = self.kc.execute(code, store_history=True, allow_stdin=False)
+        self._sent.add(msg_id)
         self._offsets[msg_id] = line_offset
         await self._sink({"type": "execute_started", "msg_id": msg_id})
         return msg_id
@@ -145,6 +151,7 @@ class KernelSession:
 
     async def _request(self, msg_id: str, timeout: float = 120) -> dict[str, Any]:
         fut: asyncio.Future = asyncio.get_running_loop().create_future()
+        self._sent.add(msg_id)
         self._replies[msg_id] = fut
         try:
             return await asyncio.wait_for(fut, timeout)
@@ -199,6 +206,8 @@ class KernelSession:
         msg_type = msg["msg_type"]
         content = msg["content"]
         parent = msg["parent_header"].get("msg_id")
+        if parent in self._stale:
+            return  # output of the kernel that was just restarted
         user_exec = parent in self._offsets
 
         if msg_type == "status":
