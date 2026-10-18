@@ -2,10 +2,10 @@
 
 # geo-sandbox
 
-Local sandbox for learning interactively popular geospatial software libraries (Shapely, GDAL, Pyproj, Rasterio and xarray): Monaco editor on the left, deck.gl canvas on the right.
+Local sandbox for learning interactively popular geospatial software libraries (Shapely, GDAL, Pyproj, Rasterio, xarray, GeoPandas, DuckDB spatial, H3 and exactextract) and file formats (GeoTIFF/COG, GeoParquet, GeoJSON, KML…): Monaco editor on the left, deck.gl canvas on the right.
 
 ## Commands
-- `pixi install` — set up environment (conda-forge only; never pip-install GDAL)
+- `pixi install` — set up environment (conda-forge only; never pip-install GDAL). DuckDB's spatial extension is the one exception: `install_extension("spatial")` downloads it once.
 - `pixi run dev` — start backend + frontend
 - `pixi run test` — backend tests (pytest)
 

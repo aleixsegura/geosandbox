@@ -1,6 +1,6 @@
 # geo-sandbox
 
-A local sandbox for learning Shapely, GDAL/OGR, pyproj, Rasterio and xarray by experimenting. You write Python on the left and see your objects drawn on the right. Geometries go on graph paper, anything with a CRS goes on a map, rasters get a GPU colormap, and CRS objects get a card.
+A local sandbox for learning Shapely, GDAL/OGR, pyproj, Rasterio, xarray, GeoPandas, DuckDB spatial, H3 and exactextract, plus geospatial file formats, by experimenting. You write Python on the left and see your objects drawn on the right. Geometries go on graph paper, anything with a CRS goes on a map, rasters get a GPU colormap, and CRS objects get a card.
 
 ## Install and run
 
