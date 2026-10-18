@@ -10,6 +10,8 @@ const SNIPPETS: { name: string; vars: string[]; mode: "paper" | "map"; select?: 
   { name: "rasterio_dem", vars: ["dem", "elevation", "slope_deg", "hillshade"], mode: "map", select: "dem" },
   { name: "xarray_time", vars: ["ndvi", "annual_mean", "summer", "cube"], mode: "map", select: "ndvi" },
   { name: "geopandas_towns", vars: ["towns", "towns_utm", "areas"], mode: "map", select: "areas" },
+  { name: "formats_vector", vars: ["municipalities", "geojson", "shapefile", "kml", "geoparquet"], mode: "map", select: "geoparquet" },
+  { name: "formats_raster", vars: ["striped", "tiled", "cog", "window_area", "overview"], mode: "map", select: "cog" },
 ];
 
 function collectErrors(page: Page): string[] {
@@ -143,6 +145,31 @@ test("coloring features by a column never re-runs code", async ({ page }) => {
   expect(Buffer.compare(plain, viridis)).not.toBe(0);
   expect(Buffer.compare(viridis, magma)).not.toBe(0);
   await page.screenshot({ path: `${SHOTS}/choropleth-full.png` });
+  expect(errors).toEqual([]);
+});
+
+test("files show what is inside them: schema, Parquet metadata, COG layout and blocks", async ({ page }) => {
+  const errors = collectErrors(page);
+  await boot(page);
+  await runSnippet(page, "formats_vector");
+  await page.getByTestId("var-shapefile").click();
+  await expect(page.getByTestId("file-fields")).toContainText("population");
+  await expect(page.getByTestId("file-fields")).not.toContainText("population_2024");
+  await page.getByTestId("var-geoparquet").click();
+  await expect(page.getByTestId("geoparquet")).toContainText("WKB");
+  await expect(page.getByTestId("row-groups")).toBeVisible();
+  await page.screenshot({ path: `${SHOTS}/file-geoparquet.png` });
+
+  await boot(page);
+  await runSnippet(page, "formats_raster");
+  await page.getByTestId("var-tiled").click();
+  await expect(page.getByTestId("cog")).toContainText("should be after");
+  await page.getByTestId("var-cog").click();
+  await expect(page.getByTestId("inspector")).toContainText("COG");
+  await page.getByTestId("toggle-blocks").click();
+  await page.waitForTimeout(600);
+  await page.getByTestId("right-canvas").screenshot({ path: `${SHOTS}/cog-blocks.png` });
+  await page.screenshot({ path: `${SHOTS}/cog-blocks-full.png` });
   expect(errors).toEqual([]);
 });
 

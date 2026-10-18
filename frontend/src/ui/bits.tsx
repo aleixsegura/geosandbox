@@ -83,7 +83,7 @@ export function Badge({ children, tone = "neutral" }: { children: ReactNode; ton
     accent: "border-accent/40 text-accent",
     ok: "border-ok/40 text-ok",
   };
-  return <span className={`rounded-sm border px-1 font-mono text-[0.625rem] leading-4 ${tones[tone]}`}>{children}</span>;
+  return <span className={`whitespace-nowrap rounded-sm border px-1 font-mono text-[0.625rem] leading-4 ${tones[tone]}`}>{children}</span>;
 }
 
 export function num(v: number | null | undefined, digits = 4): string {

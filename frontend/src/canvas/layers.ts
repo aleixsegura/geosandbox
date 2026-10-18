@@ -655,6 +655,52 @@ function rasterLayer(id: string, entry: VarEntry, ctx: LayerContext, t: number):
   } as any);
 }
 
+const gridCache = new WeakMap<object, Map<boolean, Float64Array[]>>();
+
+/** Block grid lines of a dataset, in the same space as the raster under them. */
+function blockGridPaths(r: { data: Record<string, any>; meta: Record<string, any> }, flipY: boolean): Float64Array[] {
+  let byFlip = gridCache.get(r.data);
+  if (!byFlip) gridCache.set(r.data, (byFlip = new Map()));
+  const hit = byFlip.get(flipY);
+  if (hit) return hit;
+  const { lines, offsets } = r.data.blocks as { lines: NDArray; offsets: NDArray };
+  const xy = lines.data as Float32Array;
+  const off = offsets.data as Uint32Array;
+  const grid = r.meta.layout.grid;
+  const [ox, oy] = grid.origin as [number, number];
+  // Pixel rows grow downwards: same placement as the raster's pixel-space bounds.
+  const ySign = grid.space === "pixel" && !flipY ? -1 : 1;
+  const paths: Float64Array[] = [];
+  for (let i = 0; i + 1 < off.length; i++) {
+    const path = new Float64Array((off[i + 1] - off[i]) * 2);
+    for (let v = off[i], k = 0; v < off[i + 1]; v++, k += 2) {
+      path[k] = xy[v * 2] + ox;
+      path[k + 1] = (xy[v * 2 + 1] + oy) * ySign;
+    }
+    paths.push(path);
+  }
+  byFlip.set(flipY, paths);
+  return paths;
+}
+
+function blockGridLayer(id: string, entry: VarEntry, ctx: LayerContext, t: number): Layer | null {
+  const style = ctx.styles[entry.name];
+  const r = rasterOf(entry.payload, style);
+  if (!style?.showBlocks || !r?.data.blocks || !r.meta.layout?.grid) return null;
+  return new PathLayer({
+    id: `${id}-blocks`,
+    data: blockGridPaths(r, ctx.flipY),
+    getPath: (d: any) => d,
+    positionFormat: "XY",
+    getColor: rgba(hexToRgb(THEME.ink), 170),
+    getWidth: 1,
+    widthUnits: "pixels",
+    opacity: t * dimFactor(entry.name, ctx),
+    coordinateSystem: r.meta.layout.grid.space === "lnglat" ? COORDINATE_SYSTEM.LNGLAT : COORDINATE_SYSTEM.CARTESIAN,
+    parameters: { depthTest: false } as any,
+  } as any);
+}
+
 // ---------------------------------------------------------------- transforms
 function transformLayers(id: string, entry: VarEntry, t: number, color: RGB, ghost: boolean, dim: number): Layer[] {
   const p = entry.payload;
@@ -798,6 +844,8 @@ export function buildLayers(entries: VarEntry[], ctx: LayerContext): Layer[] {
       case "dataset": {
         const layer = rasterLayer(id, entry, ctx, t);
         if (layer) below.push(layer);
+        const grid = blockGridLayer(id, entry, ctx, t);
+        if (grid) top.push(grid);
         const label = labelSpec(entry, entry.name, ctx, t, color);
         if (label) labels.push(label);
         break;

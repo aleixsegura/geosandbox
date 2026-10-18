@@ -2,6 +2,7 @@ import { rasterOf } from "../canvas/display";
 import { useStore, type VarEntry } from "../state/store";
 import { VAR_COLORS } from "../theme/themes";
 import { Code, Section } from "../ui/bits";
+import { FileSection, LayoutSection } from "./inspectors/FileInspector";
 import GeometryInspector from "./inspectors/GeometryInspector";
 import { CrsInspector, TransformerInspector, TransformInspector } from "./inspectors/ProjInspector";
 import { RasterControls, RasterProperties } from "./inspectors/RasterInspector";
@@ -110,10 +111,12 @@ export default function Inspector() {
         <span className="font-mono text-sm font-medium text-emph">{entry.name}</span>
         <span className="ml-auto truncate font-sans text-xs text-pencil">{p.meta.title ?? p.meta.type}</span>
       </div>
+      {p.meta.file && <FileSection meta={p.meta} />}
       {p.kind === "geometry" && <GeometryInspector entry={entry} />}
       {p.kind === "raster" && (
         <>
           <RasterControls name={entry.name} raster={p} />
+          <LayoutSection name={entry.name} meta={p.meta} />
           {p.meta.summary && (
             <Section title="DataArray">
               <Summary summary={p.meta.summary} />

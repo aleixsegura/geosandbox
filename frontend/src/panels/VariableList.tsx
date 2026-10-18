@@ -6,6 +6,7 @@ import { Badge } from "../ui/bits";
 
 function summary(e: VarEntry): { text: string; badge?: { text: string; tone: "neutral" | "danger" | "accent" } } {
   const { kind, meta } = e.payload;
+  if (meta.file) return { text: meta.file.name, badge: { text: meta.layout?.layout ?? meta.file.driver, tone: "accent" } };
   switch (kind) {
     case "geometry":
       return {

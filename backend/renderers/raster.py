@@ -7,6 +7,10 @@ re-running code. Rasters larger than ``MAX_SIDE`` are downsampled here.
 Georeferenced rasters are warped (nearest neighbour, values preserved) to
 EPSG:3857 so they sit exactly on the web map; everything else is drawn in
 pixel space on the graph-paper canvas.
+
+Datasets also report their internal layout (block size, compression,
+overviews, COG) and the block grid as lines, so the frontend can draw how
+the file is cut into the pieces GDAL reads.
 """
 
 from __future__ import annotations
@@ -26,6 +30,8 @@ MAX_BANDS = 64
 HIST_BINS = 64
 STATS_SAMPLE = 1_000_000
 WARP_CELLS = 16_000_000  # floats in a warped multi-band/cube grid
+MAX_GRID_LINES = 600  # block grid lines drawn; denser grids are only described
+GRID_STEPS = 16  # segments per grid line, so reprojected lines can bend
 
 
 # ---------------------------------------------------------------------------- core
@@ -225,6 +231,98 @@ def raster_payload(
     return payload("raster", name, data, meta)
 
 
+# ---------------------------------------------------------------------------- layout
+def block_layout(
+    *,
+    width: int,
+    height: int,
+    block: tuple[int, int],
+    overviews: list[int],
+    compression: str | None,
+    interleave: str | None,
+    layout: str | None,
+) -> dict[str, Any]:
+    """How a dataset is cut into blocks: ``block`` is (width, height) in pixels."""
+    bw, bh = block
+    strips = bw >= width and bh < height
+    return {
+        "block": [int(bw), int(bh)],
+        "blocks": [math.ceil(width / bw), math.ceil(height / bh)],
+        "organization": "strips" if strips else "tiles",
+        "compression": compression,
+        "interleave": interleave,
+        "overviews": [
+            {"factor": int(f), "width": math.ceil(width / f), "height": math.ceil(height / f)} for f in overviews
+        ],
+        "layout": layout,
+    }
+
+
+def attach_block_grid(out: dict[str, Any], layout: dict[str, Any], transform: Any, crs: Any) -> dict[str, Any]:
+    """Add ``layout`` to a raster payload, with its block grid as lines where it is drawn.
+
+    The grid follows the raster: lon/lat when the raster is on the map, pixel
+    (col, row) when it is on graph paper. ``transform`` is the full-resolution one.
+    """
+    h, w = out["meta"]["shape"][-2], out["meta"]["shape"][-1]
+    bw, bh = layout["block"]
+    cols = sorted({*range(0, w, bw), w})
+    rows = sorted({*range(0, h, bh), h})
+    out["meta"]["layout"] = layout
+    if len(cols) + len(rows) > MAX_GRID_LINES:
+        layout["grid"] = None
+        return out
+    t = np.linspace(0, 1, GRID_STEPS + 1)
+    lines = [np.column_stack([np.full_like(t, c), t * h]) for c in cols]
+    lines += [np.column_stack([t * w, np.full_like(t, r)]) for r in rows]
+    xy = np.concatenate(lines)
+    on_map = out["meta"]["display"]["mode"] == "map"
+    if on_map:
+        from pyproj import Transformer
+
+        x, y = transform * (xy[:, 0], xy[:, 1])
+        lon, lat = Transformer.from_crs(crs, "EPSG:4326", always_xy=True).transform(x, y)
+        xy = np.column_stack([lon, lat])
+    origin = (xy.min(axis=0) + xy.max(axis=0)) / 2
+    layout["grid"] = {"space": "lnglat" if on_map else "pixel", "origin": origin.tolist()}
+    out["data"]["blocks"] = {
+        "lines": (xy - origin).astype(np.float32),
+        "offsets": (np.arange(len(lines) + 1) * (GRID_STEPS + 1)).astype(np.uint32),
+    }
+    return out
+
+
+def rasterio_layout(ds: Any) -> dict[str, Any]:
+    bh, bw = ds.block_shapes[0]
+    return block_layout(
+        width=ds.width,
+        height=ds.height,
+        block=(bw, bh),
+        overviews=ds.overviews(1),
+        compression=ds.compression.name if ds.compression else None,
+        interleave=ds.interleaving.name if ds.interleaving else None,
+        layout=ds.tags(ns="IMAGE_STRUCTURE").get("LAYOUT"),
+    )
+
+
+def gdal_layout(ds: Any) -> dict[str, Any]:
+    band = ds.GetRasterBand(1)
+    structure = ds.GetMetadata("IMAGE_STRUCTURE") or {}
+    overviews = []
+    for i in range(band.GetOverviewCount()):
+        ov = band.GetOverview(i)
+        overviews.append(round(ds.RasterXSize / ov.XSize))
+    return block_layout(
+        width=ds.RasterXSize,
+        height=ds.RasterYSize,
+        block=tuple(band.GetBlockSize()),
+        overviews=overviews,
+        compression=structure.get("COMPRESSION"),
+        interleave=structure.get("INTERLEAVE"),
+        layout=structure.get("LAYOUT"),
+    )
+
+
 def downsample_factor(h: int, w: int) -> int:
     return max(1, math.ceil(max(h, w) / MAX_SIDE))
 
@@ -326,7 +424,7 @@ def render_rasterio(ds: Any, name: str) -> dict[str, Any] | None:
         transform = transform * Affine.scale(w / ow, h / oh)
     has_georef = not transform.is_identity or ds.crs is not None
     crs = CRS.from_wkt(ds.crs.to_wkt()) if ds.crs else None
-    return raster_payload(
+    out = raster_payload(
         name,
         np.ma.getdata(arr),
         ~np.ma.getmaskarray(arr),
@@ -345,6 +443,7 @@ def render_rasterio(ds: Any, name: str) -> dict[str, Any] | None:
             "bands_shown": n,
         },
     )
+    return attach_block_grid(out, rasterio_layout(ds), ds.transform, crs)
 
 
 # ---------------------------------------------------------------------------- GDAL
@@ -389,7 +488,7 @@ def render_gdal(ds: Any, name: str) -> dict[str, Any] | None:
     if transform is not None and transform.is_identity and crs is None:
         transform = None
     dtype = gdal.GetDataTypeName(ds.GetRasterBand(1).DataType)
-    return raster_payload(
+    out = raster_payload(
         name,
         np.stack(bands),
         np.stack(valids),
@@ -409,6 +508,8 @@ def render_gdal(ds: Any, name: str) -> dict[str, Any] | None:
             "bands_shown": n,
         },
     )
+    full_transform = Affine.from_gdal(*gt) if gt else None
+    return attach_block_grid(out, gdal_layout(ds), full_transform, crs)
 
 
 warnings.filterwarnings("ignore", message="Mean of empty slice")

@@ -25,6 +25,8 @@ export interface RasterStyle {
   show3d: boolean;
   exaggeration: number;
   datasetVar: string | null;
+  /** Draw the dataset's internal block grid (tiles or strips) over it. */
+  showBlocks: boolean;
 }
 
 /** Choropleth of a geometry collection: features colored by one numeric column. */
@@ -152,6 +154,7 @@ function initialStyle(name: string, p: Payload, prev?: RasterStyle): RasterStyle
     show3d: false,
     exaggeration: 2,
     datasetVar,
+    showBlocks: false,
   };
 }
 
